@@ -4,7 +4,7 @@
 
 # SatFetch
 
-![image](https://github.com/Jorgedavyd/SatFetch/raw/docs/source/logo.png)
+![image](https://raw.githubusercontent.com/Jorgedavyd/SatFetch/main/docs/source/logo.png)
 
 Asynchronous satellite data downloading for CDAWeb, JSOC, etc.
 
