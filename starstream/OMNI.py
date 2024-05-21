@@ -1,4 +1,4 @@
-from utils import asyncCDF, scrap_date_to_month
+from .utils import asyncCDF, scrap_date_to_month
 from ._base import CDAWeb
 import pandas as pd
 import aiofiles

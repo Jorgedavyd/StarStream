@@ -1,4 +1,4 @@
-from utils import interval_time
+from .utils import interval_time
 from astropy.io import fits
 from io import BytesIO
 import numpy as np

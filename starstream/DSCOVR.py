@@ -1,6 +1,6 @@
-from utils import datetime_interval, timedelta_to_freq, asyncGZ
+from .utils import datetime_interval, timedelta_to_freq, asyncGZ
 from datetime import timedelta, datetime
-from ..preprocessing.MHD import MHD
+from .utils import MHD
 from io import BytesIO
 import xarray as xr
 import asyncio

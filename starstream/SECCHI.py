@@ -1,11 +1,11 @@
 import asyncio
 import aiohttp
 import aiofiles
-from utils import datetime_interval
+from .utils import datetime_interval
+from datetime import timedelta
 from io import BytesIO
 from bs4 import BeautifulSoup
 import numpy as np
-from utils import *
 import glob
 from itertools import chain
 import os

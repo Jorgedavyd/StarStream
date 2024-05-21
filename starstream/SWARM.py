@@ -1,4 +1,4 @@
-from utils import datetime_interval, timedelta_to_freq
+from .utils import datetime_interval, timedelta_to_freq
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd

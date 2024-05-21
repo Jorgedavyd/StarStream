@@ -8,10 +8,16 @@
 
 Asynchronous satellite data downloading for CDAWeb, JSOC, etc.
 
+# Spacecrafts and datasets
+<img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/ACE_mission_logo.png" height=200 width=200>
+<img src="https://www.nesdis.noaa.gov/s3/styles/webp/s3/migrated/DSCOVR-Logo_NOAA_NASA_USAF.png.webp?itok=EGpby_uX" height=200 width=200>
+<img src="https://wdc.kugi.kyoto-u.ac.jp/figs/logoh.gif" height=200 width=200>
+
+
 ## Example
 ```python 
-from downloader import ACE, DSCOVR
-from downloader.utils import DataDownloading
+from starstream.sat import ACE, DSCOVR
+from starstream.utils import DataDownloading
 from datetime import datetime
 
 downloader = DataDownloading()

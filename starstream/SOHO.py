@@ -1,4 +1,4 @@
-from utils import datetime_interval, asyncTAR, asyncFITS
+from .utils import datetime_interval, asyncTAR
 from datetime import timedelta, datetime
 from ._base import CDAWeb
 from itertools import chain

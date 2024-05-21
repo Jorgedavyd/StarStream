@@ -1,4 +1,4 @@
-from utils import datetime_interval, timedelta_to_freq, asyncGZFITS
+from .utils import datetime_interval, timedelta_to_freq, asyncGZFITS
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain

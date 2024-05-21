@@ -1,4 +1,4 @@
-from utils import datetime_interval
+from .utils import datetime_interval
 from datetime import datetime, timedelta
 from dateutil.relativedelta import *
 import pandas as pd
@@ -8,7 +8,6 @@ import asyncio
 import asyncio
 import cudf
 import os
-from torch.utils.data import Dataset
 
 
 class Dst:
@@ -96,9 +95,9 @@ class Dst:
 
         csvs = await asyncio.gather(
             *[
-                cudf.from_pandas(await self.single_import(month))
+                pd.from_pandas(await self.single_import(month))
                 for month in month_scrap
             ]
         )
-        serie = cudf.concat(csvs, axis=0)
+        serie = pd.concat(csvs, axis=0)
         return serie[(serie.index >= init_date) & (serie.index <= last_date)]

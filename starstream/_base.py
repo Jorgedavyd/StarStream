@@ -1,5 +1,6 @@
-from utils import datetime_interval, timedelta_to_freq
+from .utils import datetime_interval, timedelta_to_freq
 from datetime import timedelta, datetime
+from typing import List, Coroutine
 from spacepy import pycdf
 import pandas as pd
 import numpy as np
@@ -10,6 +11,7 @@ import os
 
 
 class CDAWeb:
+    batch_size = 8
     def default_cda_processing(self, cdf_file, date):
         data_columns = [
             (
@@ -53,16 +55,20 @@ class CDAWeb:
 
     async def downloader_pipeline(self, scrap_date, session):
         self.check_tasks(scrap_date)
-        await asyncio.gather(*self.get_download_tasks(session))
+        tasks = self.get_download_tasks(session)
+
+        for i in range(0, len(self.new_scrap_date_list), self.batch_size):
+            await asyncio.gather(*tasks[i:i+ self.batch_size])
+
         await asyncio.gather(*self.get_preprocessing_tasks())
 
     def get_df(self, date):
-        return cudf.read_csv(self.csv_path(date))
+        return pd.read_csv(self.csv_path(date))
 
     def data_prep(self, scrap_date: tuple[datetime, datetime], step_size: timedelta):
         init, end = [pd.to_datetime(date) for date in scrap_date]
         scrap_date = datetime_interval(init, end, timedelta(days=1))
-        df = cudf.concat([self.get_df(date) for date in scrap_date])
+        df = pd.concat([self.get_df(date) for date in scrap_date])
         l1 = l1[(l1.index >= init) & (l1.index <= end)]
         return (
             df[(df.index >= init) & (df.index <= end)]
