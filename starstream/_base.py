@@ -13,11 +13,12 @@ import os
 class CDAWeb:
     batch_size = 8
     def default_cda_processing(self, cdf_file, date):
+        epoch = cdf_file["Epoch"][:].reshape(-1)
         data_columns = [
             (
                 cdf_file[var][:].reshape(-1, 1)
                 if len(cdf_file[var][:].shape) == 1
-                else cdf_file[var][:]
+                else cdf_file[var][:].reshape(epoch.shape[0], -1)
             )
             for var in self.phy_obs
         ]
@@ -25,7 +26,7 @@ class CDAWeb:
         pd.DataFrame(
             data,
             columns=self.variables,
-            index=pd.to_datetime(cdf_file["Epoch"][:].reshape(-1)),
+            index=pd.to_datetime(epoch),
         ).resample("1T").mean().to_csv(self.csv_path(date))
 
     def check_tasks(self, scrap_date: tuple[datetime, datetime]):

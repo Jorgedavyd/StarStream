@@ -8,7 +8,7 @@ import tarfile
 import gzip
 from inspect import iscoroutinefunction
 import aiohttp
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Any
 
 
 def separe_interval(init, end, step_size):
@@ -184,15 +184,37 @@ def timedelta_to_freq(timedelta_obj):
     return freq_str
 
 
-async def DataDownloading(sat_objs: list, scrap_date_list: List[Tuple[datetime, datetime]]):
-    for scrap_date in scrap_date_list:
-        async with aiohttp.ClientSession() as session:
-            await asyncio.gather(
-                *[
-                    sat_obj.downloader_pipeline(scrap_date, session)
-                    for sat_obj in sat_objs
-                ]
-            )
+async def DataDownloading(sat_objs: List | Any, scrap_date: List[Tuple[datetime, datetime]]):
+    if isinstance(sat_objs, (tuple, list)):
+        if isinstance(scrap_date[0], datetime):
+            async with aiohttp.ClientSession() as session:
+                await asyncio.gather(
+                    *[
+                        sat_obj.downloader_pipeline(scrap_date, session)
+                        for sat_obj in sat_objs
+                    ]
+                )
+        else:
+            for date in scrap_date:
+                async with aiohttp.ClientSession() as session:
+                    await asyncio.gather(
+                        *[
+                            sat_obj.downloader_pipeline(date, session)
+                            for sat_obj in sat_objs
+                        ]
+                    )
+            
+    else:
+        if isinstance(scrap_date[0], datetime):
+            async with aiohttp.ClientSession() as session:
+                await sat_objs.downloader_pipeline(scrap_date, session)
+        else:
+            for date in scrap_date:
+                async with aiohttp.ClientSession() as session:
+                    await sat_objs.downloader_pipeline(date, session)
+
+
+
 
 import cudf
 

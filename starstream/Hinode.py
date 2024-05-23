@@ -1,15 +1,13 @@
 from .utils import asyncFITS, datetime_interval
 from datetime import timedelta
-from datetime import datetime
 from bs4 import BeautifulSoup
 from io import BytesIO
 import numpy as np
 import asyncio
-import os
 import glob
-from PIL import Image
 import aiofiles
 from itertools import chain
+
 class Hinode:
     class XRT:
         xrt_npy_path = lambda self, name: f"./data/Hinode/XRT/{name}.png"
