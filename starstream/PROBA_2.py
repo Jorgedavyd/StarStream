@@ -21,8 +21,14 @@ class PROBA_2:
             os.makedirs(self.lyra_folder_path, exist_ok=True)
 
         def get_check_tasks(self, scrap_date):
-            scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days = 1))
-            self.new_scrap_date_list = [date for date in scrap_date if not os.path.exists(self.lyra_csv_path(date))]
+            scrap_date = datetime_interval(
+                scrap_date[0], scrap_date[-1], timedelta(days=1)
+            )
+            self.new_scrap_date_list = [
+                date
+                for date in scrap_date
+                if not os.path.exists(self.lyra_csv_path(date))
+            ]
 
         def get_download_tasks(self, session):
             return [
@@ -42,16 +48,21 @@ class PROBA_2:
             async with aiofiles.open(self.lyra_fits_path(date), "rb") as f:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
-                    np.savetxt(self.lyra_csv_path(date), np.array(list(hdul[1].data), dtype = np.float32), delimiter = ',')
+                    np.savetxt(
+                        self.lyra_csv_path(date),
+                        np.array(list(hdul[1].data), dtype=np.float32),
+                        delimiter=",",
+                    )
             os.remove(self.lyra_fits_path(date))
+
         async def downloader_pipeline(self, scrap_date, session) -> None:
             self.get_check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
-                print('Already downloaded!')
+                print("Already downloaded!")
             else:
                 await asyncio.gather(*self.get_download_tasks(session))
                 await asyncio.gather(*self.get_preprocessing_tasks())
 
 
 def save_npy(file, array) -> None:
-    np.savetxt(file, array, delimiter = ',')
+    np.savetxt(file, array, delimiter=",")

@@ -8,7 +8,7 @@ import tarfile
 import gzip
 from inspect import iscoroutinefunction
 import aiohttp
-from typing import Tuple, List, Union, Any
+from typing import Tuple, List, Any
 
 
 def separe_interval(init, end, step_size):
@@ -184,7 +184,9 @@ def timedelta_to_freq(timedelta_obj):
     return freq_str
 
 
-async def DataDownloading(sat_objs: List | Any, scrap_date: List[Tuple[datetime, datetime]]):
+async def DataDownloading(
+    sat_objs: List | Any, scrap_date: List[Tuple[datetime, datetime]]
+):
     if isinstance(sat_objs, (tuple, list)):
         if isinstance(scrap_date[0], datetime):
             async with aiohttp.ClientSession() as session:
@@ -203,7 +205,7 @@ async def DataDownloading(sat_objs: List | Any, scrap_date: List[Tuple[datetime,
                             for sat_obj in sat_objs
                         ]
                     )
-            
+
     else:
         if isinstance(scrap_date[0], datetime):
             async with aiohttp.ClientSession() as session:
@@ -214,9 +216,8 @@ async def DataDownloading(sat_objs: List | Any, scrap_date: List[Tuple[datetime,
                     await sat_objs.downloader_pipeline(date, session)
 
 
-
-
 import cudf
+
 
 class MHD:
     """

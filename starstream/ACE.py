@@ -1,10 +1,6 @@
 from ._base import CDAWeb
 from datetime import datetime
 
-"""
-Add init for step size and sequence length
-"""
-
 
 def SIS_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)

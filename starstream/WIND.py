@@ -2,6 +2,7 @@ from ._base import CDAWeb
 from datetime import datetime
 import asyncio
 
+
 def WIND_MAG_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)
     v4 = datetime.strptime("20230101", "%Y%m%d")
@@ -117,7 +118,6 @@ class WIND:
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/wind/swe/swe_h5/{date[:4]}/wi_h5_swe_{date}_v01.cdf"
             )
             self.root_path = self.cdf_path("")[:-4]
-
 
     class TDP_PM(CDAWeb):
         def __init__(self) -> None:
@@ -450,9 +450,10 @@ class WIND:
             self.url = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/sms/l2/stics_cdf/3min_vdf_solarwind/{date[:4]}/wi_l2-3min_sms-stics-vdf-solarwind_{date}_v01.cdf"
             )
+
         async def downloader_pipeline(self, scrap_date, session):
             self.check_tasks(scrap_date)
             tasks = self.get_download_tasks(session)
 
             for i in range(0, len(self.new_scrap_date_list), self.batch_size):
-                await asyncio.gather(*tasks[i:i+ self.batch_size])
+                await asyncio.gather(*tasks[i : i + self.batch_size])

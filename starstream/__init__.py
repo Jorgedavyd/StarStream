@@ -9,3 +9,7 @@ from .SECCHI import STEREO
 from .SOHO import SOHO
 from .SWARM import SWARM
 from .WIND import WIND
+from ._version import __version__
+
+__author__ = "Jorgedavyd"
+__email__ = "jorged.encyso@gmail.com"

@@ -8,14 +8,13 @@ import os
 import time
 from typing import Tuple
 import os.path as osp
-import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from selenium import webdriver
 import chromedriver_binary  # Adds chromedriver binary to path
-from icecream import ic
 
-class DSCOVR:
+
+class DSCOVR(MHD):
     fc1_root = lambda self, date: f"./data/DSCOVR/L1/faraday/{date}.csv"
     mg1_root = lambda self, date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
     f1m_root = lambda self, date: f"./data/DSCOVR/L2/faraday/{date}.csv"
@@ -29,37 +28,45 @@ class DSCOVR:
         "f1m": [f1m_root, fc_var],
         "m1m": [m1m_root, mg_var],
     }
+
     def __init__(self) -> None:
-        os.makedirs('./data/DSCOVR/L1/faraday/', exist_ok = True)
-        os.makedirs('./data/DSCOVR/L1/magnetometer/', exist_ok = True)
-        os.makedirs('./data/DSCOVR/L2/faraday/', exist_ok = True)
-        os.makedirs('./data/DSCOVR/L2/magnetometer/', exist_ok = True)
+        os.makedirs("./data/DSCOVR/L1/faraday/", exist_ok=True)
+        os.makedirs("./data/DSCOVR/L1/magnetometer/", exist_ok=True)
+        os.makedirs("./data/DSCOVR/L2/faraday/", exist_ok=True)
+        os.makedirs("./data/DSCOVR/L2/magnetometer/", exist_ok=True)
 
     def to_unix(self, scrap_date: datetime) -> int:
-        timestamp = [int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000 for date in scrap_date]
+        timestamp = [
+            int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
+            for date in scrap_date
+        ]
         return timestamp
 
     def check_update(self, scrap_date: Tuple[datetime, datetime]) -> None:
-        update_path =osp.join(osp.dirname(__file__), 'trivials/last_update.txt')
+        update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
         try:
-            with open(update_path, 'r') as file:
-                date = datetime.strptime(file.readlines()[0],'%Y%m%d')
+            with open(update_path, "r") as file:
+                date = datetime.strptime(file.readlines()[0], "%Y%m%d")
             if scrap_date[-1] > date:
                 os.remove(update_path)
-                self.scrap_links((date + timedelta(days = 1), scrap_date[-1]))
+                self.scrap_links((date + timedelta(days=1), scrap_date[-1]))
         except FileNotFoundError:
             # create the folder where the urls will be stored
             os.makedirs(osp.dirname(update_path), exist_ok=False)
             # scrap links from the page
-            self.scrap_links((datetime(2016, 7, 26), datetime.today() - timedelta(days = 1)))
+            self.scrap_links(
+                (datetime(2016, 7, 26), datetime.today() - timedelta(days=1))
+            )
 
     def scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
-        print('Updating url dataset...')
+        print("Updating url dataset...")
         unix = self.to_unix(scrap_date)
-        url = lambda unix: f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
+        url = (
+            lambda unix: f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
+        )
         # Render a chrome like browser to enter the url
         op = webdriver.ChromeOptions()
-        op.add_argument('headless')
+        op.add_argument("headless")
         driver = webdriver.Chrome(options=op)
         driver.get(url(unix))
         # Wait for rendering
@@ -68,13 +75,13 @@ class DSCOVR:
         html = driver.page_source
         driver.quit()
         # Scrap the page up to the last day
-        soup = BeautifulSoup(html, 'html.parser')
-        value = soup.find('input', class_ = 'form-control input-sm cursor-text')['value']
-        url_path = osp.join(osp.dirname(__file__), 'trivials/url.txt')
-        with open(url_path, 'a') as file:
-            file.write(value[5:].replace(' ', '\n') + '\n')
-        update_path =osp.join(osp.dirname(__file__), 'trivials/last_update.txt')
-        with open(update_path, 'x') as file:
+        soup = BeautifulSoup(html, "html.parser")
+        value = soup.find("input", class_="form-control input-sm cursor-text")["value"]
+        url_path = osp.join(osp.dirname(__file__), "trivials/url.txt")
+        with open(url_path, "a") as file:
+            file.write(value[5:].replace(" ", "\n") + "\n")
+        update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
+        with open(update_path, "x") as file:
             file.write(scrap_date[-1].strftime("%Y%m%d"))
 
     def check_tasks(self, scrap_date: tuple[datetime, datetime]):
@@ -99,7 +106,7 @@ class DSCOVR:
             await asyncGZ(BytesIO(data), self.gz_processing, url, date)
 
     def get_urls(self, scrap_date):
-        with open(osp.join(osp.dirname(__file__), 'trivials/url.txt'), "r") as file:
+        with open(osp.join(osp.dirname(__file__), "trivials/url.txt"), "r") as file:
             lines = file.readlines()
         url_list = []
         for url in lines:
@@ -179,5 +186,7 @@ class DSCOVR:
         if self.new_scrap_date_list == []:
             print("Already downloaded")
         else:
-            print(f'Got all urls for: {scrap_date[0].strftime("%Y%m%d")} to {scrap_date[-1].strftime("%Y%m%d")}')
+            print(
+                f'Got all urls for: {scrap_date[0].strftime("%Y%m%d")} to {scrap_date[-1].strftime("%Y%m%d")}'
+            )
             await asyncio.gather(*self.get_download_tasks(session))

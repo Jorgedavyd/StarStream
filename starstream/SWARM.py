@@ -2,7 +2,6 @@ from .utils import datetime_interval, timedelta_to_freq
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd
-import cudf
 import os
 import joblib
 
@@ -27,7 +26,7 @@ def separate_intervals(date_list):
     return intervals
 
 
-def mag_ion_transform(df: cudf.DataFrame):
+def mag_ion_transform(df: pd.DataFrame):
     "Bx", "By", "Bz", "Ehx", "Ehy", "Ehz", "Evx", "Evy", "Evz", "Vicrx", "Vicry", "Vicrz", "Vixv", "Vixh", "Viy", "Viz"
     nec_transform = joblib.load("2nec.pkl")
     df[["Bx", "By", "Bz"]] = nec_transform(df[["Bx", "By", "Bz"]].values)
@@ -55,14 +54,14 @@ class SwarmUtils:
     def data_prep(self, scrap_date: tuple[datetime, datetime], step_size: timedelta):
         scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days=1))
         dfs = [
-            cudf.read_csv(self.csv_path(date, X))
+            pd.read_csv(self.csv_path(date, X))
             for date in scrap_date
             for X in self.spacecrafts
         ]
         if isinstance(self, SWARM.MAG_ION):
             # perform transformation
             dfs = [mag_ion_transform(df) for df in dfs]
-        return cudf.concat(dfs).resample(timedelta_to_freq(step_size)).mean()
+        return pd.concat(dfs).resample(timedelta_to_freq(step_size)).mean()
 
     def downloader_pipeline(self, scrap_date, session):
         self.check_tasks(scrap_date)

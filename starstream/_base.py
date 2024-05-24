@@ -1,17 +1,16 @@
 from .utils import datetime_interval, timedelta_to_freq
 from datetime import timedelta, datetime
-from typing import List, Coroutine
 from spacepy import pycdf
 import pandas as pd
 import numpy as np
 import aiofiles
 import asyncio
-import cudf
 import os
 
 
 class CDAWeb:
     batch_size = 8
+
     def default_cda_processing(self, cdf_file, date):
         epoch = cdf_file["Epoch"][:].reshape(-1)
         data_columns = [
@@ -59,7 +58,7 @@ class CDAWeb:
         tasks = self.get_download_tasks(session)
 
         for i in range(0, len(self.new_scrap_date_list), self.batch_size):
-            await asyncio.gather(*tasks[i:i+ self.batch_size])
+            await asyncio.gather(*tasks[i : i + self.batch_size])
 
         await asyncio.gather(*self.get_preprocessing_tasks())
 

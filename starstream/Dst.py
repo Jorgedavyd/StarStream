@@ -1,12 +1,11 @@
 from .utils import datetime_interval
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import *
 import pandas as pd
 import aiofiles
 import aiofiles
 import asyncio
 import asyncio
-import cudf
 import os
 
 
@@ -94,10 +93,7 @@ class Dst:
         last_date = pd.to_datetime(scrap_date[-1])
 
         csvs = await asyncio.gather(
-            *[
-                pd.from_pandas(await self.single_import(month))
-                for month in month_scrap
-            ]
+            *[pd.from_pandas(await self.single_import(month)) for month in month_scrap]
         )
         serie = pd.concat(csvs, axis=0)
         return serie[(serie.index >= init_date) & (serie.index <= last_date)]

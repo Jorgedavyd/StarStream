@@ -8,7 +8,6 @@ import pandas as pd
 import aiofiles
 import aiohttp
 import asyncio
-import cudf
 import glob
 import os
 
@@ -226,7 +225,7 @@ class SDO:
                         *chain.from_iterable(
                             await asyncio.gather(
                                 *[
-                                    self.scrap_names(date   )
+                                    self.scrap_names(date)
                                     for date in self.new_scrap_date_list[
                                         i : i + self.batch_size
                                     ]
@@ -318,9 +317,9 @@ class SDO:
         def data_prep(self, scrap_date: tuple[datetime, datetime], step_size):
             init, end = scrap_date
             scrap_date = datetime_interval(init, end, step_size)
-            dfs = [cudf.read_csv(self.eve_csv_path(date)) for date in scrap_date]
+            dfs = [pd.read_csv(self.eve_csv_path(date)) for date in scrap_date]
             return (
-                cudf.concat(dfs)
+                pd.concat(dfs)
                 .resample(timedelta_to_freq(step_size))
                 .mean()
                 .loc[init:end]
