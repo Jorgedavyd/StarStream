@@ -32,7 +32,9 @@ if __name__ == "__main__":
             "pandas",
             "pillow",
             "joblib",
+            "aiohttp",
             "viresclient",
+            "asyncio"
         ],
         classifiers=[
             "Development Status :: 4 - Beta",

@@ -9,6 +9,7 @@ import gzip
 from inspect import iscoroutinefunction
 import aiohttp
 from typing import Tuple, List, Any
+import pandas as pd
 
 
 def separe_interval(init, end, step_size):
@@ -216,7 +217,6 @@ async def DataDownloading(
                     await sat_objs.downloader_pipeline(date, session)
 
 
-import cudf
 
 
 class MHD:
@@ -225,29 +225,29 @@ class MHD:
     """
 
     @staticmethod
-    def scaled_flow_pressure(Np: cudf.Series, Vp: cudf.Series):
+    def scaled_flow_pressure(Np: pd.Series, Vp: pd.Series):
         return 2e-6 * Np * Vp**2
 
     @staticmethod
-    def scaled_plasma_beta(T: cudf.Series, Np: cudf.Series, B: cudf.Series):
+    def scaled_plasma_beta(T: pd.Series, Np: pd.Series, B: pd.Series):
         T_eV = T * 4.16e-05
         beta = ((T_eV + 5.34) * Np) / (B**2)
         return beta
 
     @staticmethod
-    def scaled_alfven_velocity(B, Np: cudf.Series):
+    def scaled_alfven_velocity(B, Np: pd.Series):
         return 20 * (B / Np.sqrt())
 
     @staticmethod
-    def scaled_alfven_mach_number(Vp: cudf.Series, B: cudf.Series, Np: cudf.Series):
+    def scaled_alfven_mach_number(Vp: pd.Series, B: pd.Series, Np: pd.Series):
         return Vp / MHD.scaled_alfven_velocity(B, Np)
 
     @staticmethod
-    def scaled_sound_speed(Tp: cudf.Series):
+    def scaled_sound_speed(Tp: pd.Series):
         return 0.12 * (Tp + 1.28e5).sqrt()
 
     @staticmethod
-    def scaled_magnetosonic_speed(B: cudf.Series, Np: cudf.Series, Tp: cudf.Series):
+    def scaled_magnetosonic_speed(B: pd.Series, Np: pd.Series, Tp: pd.Series):
         V_A = MHD.scaled_alfven_velocity(B, Np)
         C_s = MHD.scaled_sound_speed(Tp)
         return (C_s**2 + V_A**2).sqrt()
@@ -259,7 +259,7 @@ class MHD:
 
     @staticmethod
     def apply_features(
-        df: cudf.DataFrame,
+        df: pd.DataFrame,
         magnetic_field_norm: str,
         proton_density: str,
         proton_bulk_velocity: str,
