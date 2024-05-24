@@ -15,7 +15,6 @@ from selenium import webdriver
 import chromedriver_binary  # Adds chromedriver binary to path
 from icecream import ic
 
-
 class DSCOVR:
     fc1_root = lambda self, date: f"./data/DSCOVR/L1/faraday/{date}.csv"
     mg1_root = lambda self, date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"

@@ -7,25 +7,28 @@ import asyncio
 import glob
 import aiofiles
 from itertools import chain
+import os
 
 class Hinode:
     class XRT:
-        xrt_npy_path = lambda self, name: f"./data/Hinode/XRT/{name}.png"
-        xrt_fits_path = lambda self, name: f"./data/Hinode/XRT/{name}.fits"
-        xrt_npy_glob_query = lambda self, name: f"./data/Hinode/XRT/{name}.png"
-        xrt_folder_path = "./data/Hinode/XRT/"
-        download_urls = []
-        url = (
-            lambda self, date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
-        )
+        batch_size: int = 1
+        
         def __init__(self, filetype: str = 'png') -> None:
             self.filetype = filetype
-        def get_check_tasks(self, scrap_date):
-            scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(hours = 1), '%Y%m%d-%H%M')
+            self.path = lambda name: f"./data/Hinode/XRT/{name}.{filetype}"
+            self.xrt_folder_path = "./data/Hinode/XRT/"
+            self.download_urls = []
+            self.url = (
+                lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
+            )
+            os.makedirs(self.xrt_folder_path, exist_ok=True)
+        
+        def check_tasks(self, scrap_date):
+            scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(hours=1), '%Y%m%d-%H%M')
             self.new_scrap_date_list = [
                 date.split('-')
                 for date in scrap_date
-                if len(glob.glob(self.xrt_npy_path(date, '')[:-5] + '*.png')) == 0
+                if len(glob.glob(self.path(f'{date.split("-")[0]}*'))) == 0
             ]
 
         def get_scrap_tasks(self, session):
@@ -34,47 +37,43 @@ class Hinode:
             ]
 
         async def scrap_names(self, session, date, hour):
-            async with session.get(self.url(date, hour)) as response:
-                html = await response.text
+            async with session.get(self.url(date, hour), ssl=False) as response:
+                html = await response.text()
                 soup = BeautifulSoup(html, "html.parser")
                 fits_links = soup.find_all(
                     "a", href=lambda href: href and href.endswith(".fits")
                 )
-                self.download_urls.append(
-                    [
-                        self.url(date, hour) + link["href"]
-                        for link in fits_links
-                    ]
-                )
+                download_urls =[self.url(date, hour) + link["href"] for link in fits_links]
 
-        def get_download_tasks(self, session):
-            return [
-                self.download_url(session, url)
-                for url in self.download_urls
-            ]
+            await asyncio.gather(*[self.download_url(session, url) for url in download_urls])
 
         def fits_processing(self, fits_file, path):
             image = fits_file[0].data
             np.save(path, image)
 
         async def download_url(self, session, url):
-            async with session.get(url) as response:
+            async with session.get(url, ssl=False) as response:
                 data = await response.read()
-                if self.filetype == 'png':
+                if self.filetype != 'fits':
                     await asyncFITS(
-                        BytesIO(data), self.fits_processing, self.xrt_npy_path(url.split('/')[-1][7:-8] + '.png')
+                        BytesIO(data), self.fits_processing, self.path(url[-22:-9])
                     )
-                elif self.filetype == 'fits':
-                    async with aiofiles.open(self.xrt_fits_path(url.split('/')[-1][7:-8] + '.fits')) as file:
+                else:
+                    async with aiofiles.open(self.path(url[-22:-9]), 'wb') as file:
                         await file.write(data)
 
         async def downloader_pipeline(self, scrap_date, session):
-            await asyncio.gather(*self.get_check_tasks(scrap_date))
-            await asyncio.gather(*self.get_download_tasks(session))
-
+            self.check_tasks(scrap_date)
+            if len(self.new_scrap_date_list) == 0:
+                print('Already downloaded!')
+            else:
+                scrap_tasks = self.get_scrap_tasks(session)
+                for i in range(0, len(scrap_tasks), self.batch_size):
+                    await asyncio.gather(*scrap_tasks[i:i + self.batch_size])
+                
         def get_hour_images(self, date):
             query_c = "*" + "_".join(date.split("-"))[:-4] + "**"
-            return glob.glob(self.xrt_npy_path(query_c))
+            return glob.glob(self.path(query_c))
 
         async def data_prep(self, scrap_date):
             scrap_date = datetime_interval(
@@ -82,5 +81,4 @@ class Hinode:
                 scrap_date[-1],
                 step_size=timedelta(days=1),
             )
-            
-            return list(*chain.from_iterable([glob.glob(self.xrt_folder_path + date + '*') for date in scrap_date]))
+            return [*chain.from_iterable([glob.glob(self.path(f"{date}*")) for date in scrap_date])]

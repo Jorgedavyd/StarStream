@@ -131,7 +131,7 @@ def datetime_interval(
     current_date = init
     date_list = []
     while current_date <= last:
-        date_list.append(current_date.date().strftime(output_format))
+        date_list.append(current_date.strftime(output_format))
         current_date += step_size
     return date_list
 

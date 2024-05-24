@@ -1,10 +1,12 @@
-from .utils import asyncCDF, scrap_date_to_month
+from .utils import asyncCDF, scrap_date_to_month, datetime_interval
 from ._base import CDAWeb
 import pandas as pd
 import aiofiles
 import asyncio
-import cudf
 import os
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+
 
 
 class OMNI(CDAWeb):
@@ -31,6 +33,7 @@ class OMNI(CDAWeb):
     cdf_path = lambda date: f'./data/OMNI/HRO2/{"-".join(date)}.cdf'
 
     def check_tasks(self, scrap_date):
+        scrap_date = datetime_interval(*scrap_date, relativedelta(months = 1))
         scrap_date = scrap_date_to_month(scrap_date)
         self.new_scrap_date_list = [
             date for date in scrap_date if not os.path.exists(self.csv_file(date))
@@ -73,11 +76,11 @@ class OMNI(CDAWeb):
         df = await asyncio.get_event_loop().run_in_executor(
             None, pd.read_csv, self.csv_path(date)
         )
-        return cudf.from_pandas(df)
+        return pd.from_pandas(df)
 
     def get_dfs(self, scrap_date):
         return [self.get_df(date) for date in scrap_date]
 
     async def data_prep(self, scrap_date):
         dfs = await asyncio.gather(*self.get_dfs(scrap_date))
-        return cudf.concat(dfs)
+        return pd.concat(dfs)
