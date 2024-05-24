@@ -1,11 +1,11 @@
-from .utils import interval_time
+from .utils import datetime_interval
 from astropy.io import fits
 from io import BytesIO
 import numpy as np
 import aiofiles
 import os
-
-"""cambiar y probar no importa mucho ahora"""
+import asyncio
+from datetime import timedelta
 
 
 class PROBA_2:
@@ -18,14 +18,11 @@ class PROBA_2:
             self.lyra_fits_path = lambda date: f"./data/LYRA/{date}.fits"
             self.lyra_csv_path = lambda date: f"./data/LYRA/{date}.csv"
             self.sl = sequence_length
+            os.makedirs(self.lyra_folder_path, exist_ok=True)
 
         def get_check_tasks(self, scrap_date):
-            self.scrap_date = interval_time(scrap_date[0], scrap_date[-1])
-            for date in scrap_date:
-                if os.path.exists(self.lyra_csv_path(date)):
-                    pass
-                else:
-                    self.new_scrap_date_list.append(date)
+            scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days = 1))
+            self.new_scrap_date_list = [date for date in scrap_date if not os.path.exists(self.lyra_csv_path(date))]
 
         def get_download_tasks(self, session):
             return [
@@ -45,4 +42,16 @@ class PROBA_2:
             async with aiofiles.open(self.lyra_fits_path(date), "rb") as f:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
-                    np.savetxt(self.lyra_csv_path(date), hdul[1].data, delimiter=",")
+                    np.savetxt(self.lyra_csv_path(date), np.array(list(hdul[1].data), dtype = np.float32), delimiter = ',')
+            os.remove(self.lyra_fits_path(date))
+        async def downloader_pipeline(self, scrap_date, session) -> None:
+            self.get_check_tasks(scrap_date)
+            if len(self.new_scrap_date_list) == 0:
+                print('Already downloaded!')
+            else:
+                await asyncio.gather(*self.get_download_tasks(session))
+                await asyncio.gather(*self.get_preprocessing_tasks())
+
+
+def save_npy(file, array) -> None:
+    np.savetxt(file, array, delimiter = ',')
