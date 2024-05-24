@@ -2,8 +2,6 @@ from .utils import datetime_interval, timedelta_to_freq
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd
-import asyncio
-import time
 import cudf
 import os
 import joblib
@@ -66,7 +64,7 @@ class SwarmUtils:
             dfs = [mag_ion_transform(df) for df in dfs]
         return cudf.concat(dfs).resample(timedelta_to_freq(step_size)).mean()
 
-    def downloader_pipeline(self, scrap_date):
+    def downloader_pipeline(self, scrap_date, session):
         self.check_tasks(scrap_date)
         if self.new_scrap_date_list == []:
             print("Datasets already downloaded")
@@ -96,72 +94,72 @@ class SwarmUtils:
 
 class SWARM:
     class MAG(SwarmUtils):
-        collection = lambda self, X: f"SW_OPER_MAG{X}_LR_1B"
-        csv_path = lambda self, date, X: f"./data/SWARM/MAG/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/MAG/Sat_{X}"
-        measurements = ["F", "B_NEC", "dF_Sun", "dB_Sun"]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_OPER_MAG{X}_LR_1B"
+            self.csv_path = lambda date, X: f"./data/SWARM/MAG/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/MAG/Sat_{X}"
+            self.measurements = ["F", "B_NEC", "dF_Sun", "dB_Sun"]
             self.create_folders()
 
     class EFI(SwarmUtils):
-        collection = lambda self, X: f"SW_OPER_EFI{X}_LP_1B"
-        csv_path = lambda self, date, X: f"./data/SWARM/EFI/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/EFI/Sat_{X}"
-        measurements = ["Ne", "Te", "U_orbit", "Vs"]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_OPER_EFI{X}_LP_1B"
+            self.csv_path = lambda date, X: f"./data/SWARM/EFI/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/EFI/Sat_{X}"
+            self.measurements = ["Ne", "Te", "U_orbit", "Vs"]
             self.create_folders()
 
     class MAG_ION(SwarmUtils):
-        collection = lambda self, X: f"SW_EXPT_EFI{X}_TCT16"
-        csv_path = lambda self, date, X: f"./data/SWARM/MAG_ION/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/MAG_ION/Sat_{X}/"
-        measurements = [
-            "Bx",
-            "By",
-            "Bz",
-            "Ehx",
-            "Ehy",
-            "Ehz",
-            "Evx",
-            "Evy",
-            "Evz",
-            "Vicrx",
-            "Vicry",
-            "Vicrz",
-            "Vixv",
-            "Vixh",
-            "Viy",
-            "Viz",
-        ]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_EXPT_EFI{X}_TCT16"
+            self.csv_path = lambda date, X: f"./data/SWARM/MAG_ION/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/MAG_ION/Sat_{X}/"
+            self.measurements = [
+                "Bx",
+                "By",
+                "Bz",
+                "Ehx",
+                "Ehy",
+                "Ehz",
+                "Evx",
+                "Evy",
+                "Evz",
+                "Vicrx",
+                "Vicry",
+                "Vicrz",
+                "Vixv",
+                "Vixh",
+                "Viy",
+                "Viz",
+            ]
             self.create_folders()
 
     class ION(SwarmUtils):
-        collection = lambda self, X: f"SW_PREL_EFI{X}IDM_2_"
-        csv_path = lambda self, date, X: f"./data/SWARM/ION/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/ION/Sat_{X}/"
-        measurements = ["M_i_eff", "N_i", "V_i"]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_PREL_EFI{X}IDM_2_"
+            self.csv_path = lambda date, X: f"./data/SWARM/ION/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/ION/Sat_{X}/"
+            self.measurements = ["M_i_eff", "N_i", "V_i"]
             self.create_folders()
 
     class FAC(SwarmUtils):
-        collection = lambda self, X: f"SW_OPER_FAC{X}TMS_2F"
-        csv_path = lambda self, date, X: f"./data/SWARM/FAC/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/FAC/Sat_{X}/"
-        measurements = ["IRC", "FAC"]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_OPER_FAC{X}TMS_2F"
+            self.csv_path = lambda date, X: f"./data/SWARM/FAC/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/FAC/Sat_{X}/"
+            self.measurements = ["IRC", "FAC"]
             self.create_folders()
 
     class EEF(SwarmUtils):
-        collection = lambda self, X: f"SW_OPER_EEF{X}TMS_2F"
-        csv_path = lambda self, date, X: f"./data/SWARM/EEF/Sat_{X}/{date}.csv"
-        root_path = lambda self, X: f"./data/SWARM/EEF/Sat_{X}/"
-        measurements = ["EEF"]
 
         def __init__(self):
+            self.collection = lambda X: f"SW_OPER_EEF{X}TMS_2F"
+            self.csv_path = lambda date, X: f"./data/SWARM/EEF/Sat_{X}/{date}.csv"
+            self.root_path = lambda X: f"./data/SWARM/EEF/Sat_{X}/"
+            self.measurements = ["EEF"]
             self.create_folders()

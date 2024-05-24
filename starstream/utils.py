@@ -40,7 +40,7 @@ def l1_hour_steps(
 
 
 def scrap_date_to_month(scrap_date):
-    return [(day[:4], day[4:6]) for day in scrap_date]
+    return [day[:6] for day in scrap_date]
 
 
 async def asyncCDF(cdf_path: str, processing, *args):

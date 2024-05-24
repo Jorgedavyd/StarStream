@@ -150,7 +150,7 @@ class SDO:
             self, scrap_date: tuple[datetime, datetime], session
         ):
             self.check_tasks(scrap_date)
-            await self.batched_download(session)
+            await self.batched_download()
 
     class AIA_LR:
         batch_size = 256
@@ -226,7 +226,7 @@ class SDO:
                         *chain.from_iterable(
                             await asyncio.gather(
                                 *[
-                                    self.scrap_names(date)
+                                    self.scrap_names(date   )
                                     for date in self.new_scrap_date_list[
                                         i : i + self.batch_size
                                     ]
@@ -254,20 +254,20 @@ class SDO:
                 )
             ]
 
-        async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime]):
+        async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime], _):
             self.check_tasks(scrap_date)
             await self.batched_download()
 
     class EVE:
-        batch_size = 10
-        url = (
-            lambda self, date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_007.fit.gz"
-        )
-        eve_csv_path = lambda self, date: f"./data/SDO/EVE/{date}.csv"
-        eve_fits_gz_path = lambda self, date: f"./data/SDO/EVE/{date}.fits.gz"
-        eve_path = "./data/SDO/EVE/"
-        os.makedirs(eve_path, exist_ok=True)
-        """utils"""
+        def __init__(self) -> None:
+            self.batch_size = 10
+            self.url = (
+                lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_007.fit.gz"
+            )
+            self.eve_csv_path = lambda date: f"./data/SDO/EVE/{date}.csv"
+            self.eve_fits_gz_path = lambda date: f"./data/SDO/EVE/{date}.fits.gz"
+            self.eve_path = "./data/SDO/EVE/"
+            os.makedirs(self.eve_path, exist_ok=True)
 
         async def to_csv(self, fits_file, day):
             df = await asyncio.get_event_loop().run_in_executor(
