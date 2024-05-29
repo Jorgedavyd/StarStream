@@ -3,6 +3,8 @@ from ..starstream.utils import DataDownloading
 from ..starstream import *
 import asyncio
 import os
+from datetime import timedelta
+
 
 # Defining default values for tests
 scrap_date_list = [
@@ -21,7 +23,7 @@ async def ncei() -> None:
 async def fits() -> None:
     await DataDownloading(
         [
-            Hinode.XRT(), PROBA_2.Lyra(), SDO.AIA_HR()
+            Hinode.XRT('fits'), PROBA_2.LYRA(timedelta(minutes = 5)), SDO.AIA_HR(timedelta(minutes = 2), '0171')
         ],
         scrap_date_list
     )

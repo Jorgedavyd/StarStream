@@ -1,4 +1,4 @@
-name: To PyPI
+name: CD
 
 on:
   push:
