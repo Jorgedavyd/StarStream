@@ -2,7 +2,7 @@
 [![license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![code-style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![pypi](https://img.shields.io/pypi/v/starstream)](https://pypi.org/project/starstream)
-![CI-CD](https://github.com/Jorgedavyd/StarStream/actions/workflows/ci.yml/badge.svg)
+![CI-CD](https://github.com/Jorgedavyd/StarStream/actions/workflows/default.yml/badge.svg)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Jorgedavyd/starstream/main/docs/source/logo.png"/>
