@@ -6,7 +6,7 @@
 ![CI-CD](https://github.com/Jorgedavyd/StarStream/actions/workflows/CD.yml/badge.svg)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Jorgedavyd/starstream/main/docs/source/logo.png"/>
+  <img src="https://raw.githubusercontent.com/Jorgedavyd/starstream/main/docs/source/logo.png"/ height=350 width=350>
 </p>
 
 Asynchronous satellite data downloading for CDAWeb, JSOC, etc.
