@@ -12,33 +12,27 @@ scrap_date_list = [
     (datetime(2018, 10, 3), datetime(2018, 3, 15))
     ]
 
-async def ncei() -> None:
-    await DataDownloading(
+async def test_ncei() -> None:
+    asyncio.run(DataDownloading(
         [
             DSCOVR()
         ],
         scrap_date_list
-    )
+    ))
 
-async def fits() -> None:
-    await DataDownloading(
+async def test_fits() -> None:
+    asyncio.run(DataDownloading(
         [
             Hinode.XRT('fits'), PROBA_2.LYRA(timedelta(minutes = 5)), SDO.AIA_HR(timedelta(minutes = 2), '0171')
         ],
         scrap_date_list
-    )
+    ))
 
-async def cdf() -> None:
-    await DataDownloading(
+async def test_cdf() -> None:
+    asyncio.run(DataDownloading(
         [
             SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()
         ]
-    )
-
-def test() -> None:
-    asyncio.run(ncei())
-    asyncio.run(fits())
-    asyncio.run(cdf())
-    os.remove('./data')
+    ))
 
 
