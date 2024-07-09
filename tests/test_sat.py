@@ -1,7 +1,6 @@
 from datetime import datetime
 from starstream import * 
 import asyncio
-import os
 from datetime import timedelta
 
 # Defining default values for tests
