@@ -7,6 +7,7 @@ import os
 import asyncio
 from datetime import timedelta
 
+__all__ = ['PROBA_2']
 
 class PROBA_2:
     class LYRA:

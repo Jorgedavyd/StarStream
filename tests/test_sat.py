@@ -1,10 +1,8 @@
 from datetime import datetime
-from ..starstream.utils import DataDownloading
-from ..starstream import *
+from starstream import DataDownloading, DSCOVR, Hinode, SOHO, ACE, Dst, OMNI, WIND
 import asyncio
 import os
 from datetime import timedelta
-
 
 # Defining default values for tests
 scrap_date_list = [
@@ -12,7 +10,7 @@ scrap_date_list = [
     (datetime(2018, 10, 3), datetime(2018, 3, 15))
     ]
 
-async def test_ncei() -> None:
+def test_ncei() -> None:
     asyncio.run(DataDownloading(
         [
             DSCOVR()
@@ -20,7 +18,7 @@ async def test_ncei() -> None:
         scrap_date_list
     ))
 
-async def test_fits() -> None:
+def test_fits() -> None:
     asyncio.run(DataDownloading(
         [
             Hinode.XRT('fits'), PROBA_2.LYRA(timedelta(minutes = 5)), SDO.AIA_HR(timedelta(minutes = 2), '0171')
@@ -28,7 +26,7 @@ async def test_fits() -> None:
         scrap_date_list
     ))
 
-async def test_cdf() -> None:
+def test_cdf() -> None:
     asyncio.run(DataDownloading(
         [
             SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()

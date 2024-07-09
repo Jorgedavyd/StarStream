@@ -1,15 +1,15 @@
-from .Dst import Dst
-from .OMNI import OMNI
-from .DSCOVR import DSCOVR
-from .ACE import ACE
-from .Hinode import Hinode
-from .PROBA_2 import PROBA_2
-from .SDO import SDO
-from .SECCHI import STEREO
-from .SOHO import SOHO
-from .SWARM import SWARM
-from .WIND import WIND
+from .dst import *
+from .omni import *
+from .dscovr import *
+from .ace import *
+from .hinode import *
+from .proba_2 import *
+from .sdo import *
+from .secchi import *
+from .soho import *
+from .swarm import *
+from .wind import *
 from ._version import __version__
-
+from .utils import * 
 __author__ = "Jorgedavyd"
 __email__ = "jorged.encyso@gmail.com"

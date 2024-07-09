@@ -6,7 +6,7 @@ import asyncio
 import os
 from dateutil.relativedelta import relativedelta
 
-
+__all__ = ['OMNI']
 class OMNI(CDAWeb):
     def __init__(self) -> None:
         super().__init__()

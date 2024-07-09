@@ -8,7 +8,7 @@ import asyncio
 import glob
 import os
 
-
+__all__ = ['SOHO']
 class SOHO:
     class CELIAS_SEM(CDAWeb):
         csv_path = lambda self, date: f"./data/SOHO/CELIAS_SEM/{date}.csv"

@@ -11,7 +11,7 @@ import aiohttp
 from typing import Tuple, List, Any
 import pandas as pd
 
-
+__all__ = ['DataDownloading', 'MHD'] 
 def separe_interval(init, end, step_size):
     intervals = []
     current_date = init

@@ -15,7 +15,7 @@ import os
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
 """
 
-
+__all__ = ['SDO']
 def date_to_day_of_year(date_string):
     # Convert date string to datetime object
     date_object = datetime.strptime(date_string, "%Y%m%d")

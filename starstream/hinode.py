@@ -8,7 +8,7 @@ import glob
 import aiofiles
 from itertools import chain
 import os
-
+__all__ = ['Hinode']
 
 class Hinode:
     class XRT:
