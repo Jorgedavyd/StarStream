@@ -1,5 +1,5 @@
 from datetime import datetime
-from starstream import DataDownloading, DSCOVR, Hinode, SOHO, ACE, Dst, OMNI, WIND
+from starstream import * 
 import asyncio
 import os
 from datetime import timedelta
@@ -21,7 +21,7 @@ def test_ncei() -> None:
 def test_fits() -> None:
     asyncio.run(DataDownloading(
         [
-            Hinode.XRT('fits'), PROBA_2.LYRA(timedelta(minutes = 5)), SDO.AIA_HR(timedelta(minutes = 2), '0171')
+            Hinode.XRT('fits'), PROBA_2.LYRA(timedelta(minutes = 5)), SDO.AIA_HR(timedelta(minutes = 2), '171')
         ],
         scrap_date_list
     ))
@@ -30,7 +30,8 @@ def test_cdf() -> None:
     asyncio.run(DataDownloading(
         [
             SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()
-        ]
+        ],
+        scrap_date_list
     ))
 
 

@@ -10,7 +10,7 @@ import aiohttp
 import asyncio
 import glob
 import os
-
+from typing import Union
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
 """
@@ -46,7 +46,7 @@ class SDO:
             "4500",
         ]
 
-        def __init__(self, step_size: timedelta, wavelength: str | int):
+        def __init__(self, step_size: timedelta, wavelength: Union[str, int]):
             assert (
                 str(wavelength) in self.wavelengths
             ), f"Not valid wavelength: {self.wavelengths}"

@@ -8,7 +8,7 @@ import tarfile
 import gzip
 from inspect import iscoroutinefunction
 import aiohttp
-from typing import Tuple, List, Any
+from typing import Tuple, List, Any, Union
 import pandas as pd
 
 __all__ = ['DataDownloading', 'MHD'] 
@@ -186,7 +186,7 @@ def timedelta_to_freq(timedelta_obj):
 
 
 async def DataDownloading(
-    sat_objs: List | Any, scrap_date: List[Tuple[datetime, datetime]]
+    sat_objs: Union[List, Any], scrap_date: List[Tuple[datetime, datetime]]
 ):
     if isinstance(sat_objs, (tuple, list)):
         if isinstance(scrap_date[0], datetime):
