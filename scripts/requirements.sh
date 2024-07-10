@@ -8,4 +8,3 @@ pip-compile ./requirements_unique.in
 rm -f *.in
 pip install -r requirements_unique.txt
 rm -f requirements_unique.txt
-python3 update.py
