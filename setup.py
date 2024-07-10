@@ -34,7 +34,7 @@ if __name__ == "__main__":
             "joblib",
             "aiohttp",
             "viresclient",
-            "asyncio"
+            "asyncio",
         ],
         classifiers=[
             "Development Status :: 4 - Beta",

@@ -5,7 +5,8 @@ import pandas as pd
 import os
 import joblib
 
-__all__ = ['SWARM']
+__all__ = ["SWARM"]
+
 
 def separate_intervals(date_list):
     intervals = []

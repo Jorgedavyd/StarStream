@@ -8,7 +8,8 @@ from itertools import chain
 import os
 from PIL import Image
 
-__all__ = ['STEREO']
+__all__ = ["STEREO"]
+
 
 class STEREO:
     class SECCHI:

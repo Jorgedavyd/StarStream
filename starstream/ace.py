@@ -1,7 +1,8 @@
 from ._base import CDAWeb
 from datetime import datetime
 
-__all__ = ['ACE']
+__all__ = ["ACE"]
+
 
 def SIS_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)
