@@ -11,7 +11,9 @@ import aiohttp
 from typing import Tuple, List, Any, Union
 import pandas as pd
 
-__all__ = ['DataDownloading', 'MHD'] 
+__all__ = ["DataDownloading", "MHD"]
+
+
 def separe_interval(init, end, step_size):
     intervals = []
     current_date = init
@@ -215,8 +217,6 @@ async def DataDownloading(
             for date in scrap_date:
                 async with aiohttp.ClientSession() as session:
                     await sat_objs.downloader_pipeline(date, session)
-
-
 
 
 class MHD:

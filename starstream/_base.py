@@ -75,4 +75,3 @@ class CDAWeb:
             .resample(timedelta_to_freq(step_size))
             .mean()
         )
-

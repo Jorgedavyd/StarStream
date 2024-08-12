@@ -8,7 +8,9 @@ import asyncio
 import asyncio
 import os
 
-__all__ = ['Dst']
+__all__ = ["Dst"]
+
+
 class Dst:
     root = "./data/Dst_index"
     csv_path = lambda self, month: f"./data/Dst_index/{month}.csv"

@@ -13,7 +13,9 @@ import pandas as pd
 from selenium import webdriver
 import chromedriver_binary  # Adds chromedriver binary to path
 
-__all__ = ['DSCOVR']
+__all__ = ["DSCOVR"]
+
+
 class DSCOVR(MHD):
     fc1_root = lambda self, date: f"./data/DSCOVR/L1/faraday/{date}.csv"
     mg1_root = lambda self, date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
