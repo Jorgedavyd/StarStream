@@ -65,7 +65,9 @@ class CDAWeb:
     def get_df(self, date) -> pd.DataFrame:
         return pd.read_csv(self.csv_path(date))
 
-    def data_prep(self, scrap_date: tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
+    def data_prep(
+        self, scrap_date: tuple[datetime, datetime], step_size: timedelta
+    ) -> pd.DataFrame:
         init, end = [pd.to_datetime(date) for date in scrap_date]
         scrap_date = datetime_interval(init, end, timedelta(days=1))
         df = pd.concat([self.get_df(date) for date in scrap_date])
