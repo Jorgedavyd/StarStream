@@ -6,7 +6,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Tuple
+from typing import Sequence, Tuple
 import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -37,7 +37,7 @@ class DSCOVR(MHD):
         os.makedirs("./data/DSCOVR/L2/faraday/", exist_ok=True)
         os.makedirs("./data/DSCOVR/L2/magnetometer/", exist_ok=True)
 
-    def to_unix(self, scrap_date: datetime) -> int:
+    def to_unix(self, scrap_date: Sequence[datetime]) -> int:
         timestamp = [
             int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
             for date in scrap_date
