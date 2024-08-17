@@ -9,6 +9,7 @@ from .secchi import *
 from .soho import *
 from .swarm import *
 from .wind import *
+from .goes import *
 from ._version import __version__
 from .utils import *
 
