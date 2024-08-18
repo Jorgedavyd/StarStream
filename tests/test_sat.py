@@ -34,10 +34,15 @@ def test_cdf() -> None:
         )
     )
 
+<<<<<<< HEAD
 def test_goes() -> None:
     asyncio.run(
         DataDownloading(
             [GOES16('he304', './data')], scrap_date_list
         )
     )
+=======
+>>>>>>> 7bc9cd30e3c04584fa7f84e4dddc614debfa3e74
 
+def test_goes() -> None:
+    asyncio.run(DataDownloading([GOES16("suvi-l1b-he304", "./data")], scrap_date_list))
