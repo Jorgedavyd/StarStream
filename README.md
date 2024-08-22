@@ -26,19 +26,15 @@ Asynchronous satellite data downloading for CDAWeb, JSOC, etc.
 from starstream import ACE, DSCOVR
 from starstream.utils import DataDownloading
 from datetime import datetime
-import asyncio
 
-async def main():
-    await DataDownloading(
+if __name__ == '__main__':
+    DataDownloading(
         [
             ACE(),
             DSCOVR()
         ],
-            (datetime(2014, 12, 12), datetime(2014, 12, 30))
+        (datetime(2014, 12, 12), datetime(2014, 12, 30))
     )
-
-if __name__ == '__main__':
-    asyncio.run(main())
 
 ```
 ## Citation
