@@ -11,10 +11,13 @@ from typing import Callable, List, Tuple
 
 __all__ = ["Dst"]
 
+
 class Dst:
     def __init__(self) -> None:
         self.root: str = "./data/Dst_index"
-        self.csv_path: Callable[[str], str] = lambda month: f"./data/Dst_index/{month}.csv"
+        self.csv_path: Callable[[str], str] = (
+            lambda month: f"./data/Dst_index/{month}.csv"
+        )
         os.makedirs(self.root, exist_ok=True)
 
     def date_to_url(self, month: str) -> str:
@@ -34,7 +37,9 @@ class Dst:
     """
 
     def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]):
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, relativedelta(months=1), "%Y%m")
+        new_scrap_date: List[str] = datetime_interval(
+            *scrap_date, relativedelta(months=1), "%Y%m"
+        )
         self.new_scrap_date_list: List[str] = [
             month
             for month in new_scrap_date

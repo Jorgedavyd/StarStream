@@ -31,8 +31,12 @@ def TDP_PM_version(date, mode="%Y%m%d"):
 class WIND:
     class MAG(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/MAG/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/MAG/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/MAG/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/MAG/{date}.cdf"
+            )
             self.phy_obs: List[str] = ["BF1", "BGSE", "BGSM"]
             self.variables: List[str] = ["BF1"] + [
                 f"{name}_{i}" for name in self.phy_obs[1:3] for i in range(1, 4)
@@ -44,8 +48,12 @@ class WIND:
 
     class SWE_alpha_proton(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/alpha_proton/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/alpha_proton/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/alpha_proton/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/alpha_proton/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "Proton_V_nonlin",
                 "Proton_VX_nonlin",
@@ -83,8 +91,12 @@ class WIND:
 
     class SWE_electron_angle(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/electron_angle/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/electron_angle/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/electron_angle/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/electron_angle/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "f_pitch_SPA",
                 "Ve",
@@ -99,8 +111,12 @@ class WIND:
 
     class SWE_electron_moments(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/electron_moments/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/SWE/electron_moments/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/electron_moments/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/SWE/electron_moments/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "N_elec",
                 "TcElec",
@@ -122,8 +138,12 @@ class WIND:
 
     class TDP_PM(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/PM/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/PM/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/PM/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/PM/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "P_VELS",
                 "P_TEMP",
@@ -151,9 +171,13 @@ class WIND:
 
     class TDP_PLSP(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/PLSP/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/PLSP/{date}.cdf"
-            self.phy_obs: List[str]  = [
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/PLSP/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/PLSP/{date}.cdf"
+            )
+            self.phy_obs: List[str] = [
                 "FLUX",
                 "ENERGY",
                 "MOM.P.VTHERMAL",
@@ -187,8 +211,12 @@ class WIND:
 
     class TDP_SOSP(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SOSP/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SOSP/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SOSP/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SOSP/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX",
                 "ENERGY",
@@ -203,9 +231,15 @@ class WIND:
 
     class TDP_SOPD(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SOPD/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SOPD/{date}.cdf"
-            self.phy_obs: str = "FLUX"  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SOPD/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SOPD/{date}.cdf"
+            )
+            self.phy_obs: str = (
+                "FLUX"  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
+            )
             self.pitch_angles: List[str] = [15, 35, 57, 80, 102, 123, 145, 165]
             self.energy_bands: List[str] = [
                 "70keV",
@@ -230,8 +264,12 @@ class WIND:
 
     class TDP_ELSP(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/ELSP/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/ELSP/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/ELSP/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/ELSP/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX",
                 "ENERGY",
@@ -265,8 +303,12 @@ class WIND:
 
     class TDP_ELPD(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/ELPD/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/ELPD/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/ELPD/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/ELPD/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX"
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_elpd_3dp_00000000_v01.skt
@@ -300,8 +342,12 @@ class WIND:
 
     class TDP_EHSP(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/EHSP/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/EHSP/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/EHSP/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/EHSP/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX",
                 "ENERGY",
@@ -335,8 +381,12 @@ class WIND:
 
     class TDP_EHPD(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/EHPD/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/EHPD/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/EHPD/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/EHPD/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX"
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_ehpd_3dp_00000000_v01.skt
@@ -371,8 +421,12 @@ class WIND:
     class TDP_SFSP(CDAWeb):
         def __init__(self) -> None:
 
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFSP/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFSP/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFSP/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFSP/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX",
                 "ENERGY",
@@ -398,8 +452,12 @@ class WIND:
 
     class TDP_SFPD(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFPD/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFPD/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFPD/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFPD/{date}.cdf"
+            )
             self.phy_obs: List[str] = [
                 "FLUX"
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_elpd_3dp_00000000_v01.skt
@@ -425,8 +483,12 @@ class WIND:
 
     class SMS(CDAWeb):
         def __init__(self) -> None:
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFPD/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/WIND/TDP/SFPD/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFPD/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/WIND/TDP/SFPD/{date}.cdf"
+            )
             self.root_path: str = self.cdf_path("")[:-4]
             self.angle: List[int] = [53, 0, -53]
             self.phy_obs: List[str] = [
@@ -452,7 +514,9 @@ class WIND:
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/sms/l2/stics_cdf/3min_vdf_solarwind/{date[:4]}/wi_l2-3min_sms-stics-vdf-solarwind_{date}_v01.cdf"
             )
 
-        async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
+        async def downloader_pipeline(
+            self, scrap_date: Tuple[datetime, datetime], session
+        ):
             self.check_tasks(scrap_date)
             tasks = self.get_download_tasks(session)
 

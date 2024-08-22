@@ -16,10 +16,10 @@ class STEREO:
     class SECCHI:
         class EUVI:
             def __init__(self) -> None:
-                self.url: Callable[[str,str,str],str] = (
+                self.url: Callable[[str, str, str], str] = (
                     lambda date, wavelength, name: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A/{name}"
                 )
-                self.euvi_png_path: Callable[[str],str] = (
+                self.euvi_png_path: Callable[[str], str] = (
                     lambda name: f'./data/SECCHI/EUVI/{name.split("_")[-2][:3]}/{name}'
                 )
                 self.wavelengths: List[str] = ["171", "195", "284", "304"]
@@ -36,7 +36,7 @@ class STEREO:
                         for size in soup.find_all(
                             "td",
                             align="right",
-                            text= lambda text: text.endswith("M") or text.endswith("K"),
+                            text=lambda text: text.endswith("M") or text.endswith("K"),
                         )
                     ]
                     names = [

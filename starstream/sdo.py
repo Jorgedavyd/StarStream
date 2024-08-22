@@ -66,7 +66,9 @@ class SDO:
             os.makedirs(self.jp2_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
-            new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date, timedelta(days=1)
+            )
             self.new_scrap_date_list: List[str] = [
                 date
                 for date in new_scrap_date
@@ -135,7 +137,9 @@ class SDO:
                 )
 
         def data_prep(self, scrap_date: tuple[datetime, datetime]):
-            new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date, timedelta(days=1)
+            )
             return [
                 *chain.from_iterable(
                     [glob.glob(self.scrap_path(date)) for date in new_scrap_date]
@@ -171,13 +175,21 @@ class SDO:
             self.url: Callable[[str, str], str] = (
                 lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
             )
-            self.scrap_path: Callable[[str], str] = lambda date: f"./data/SDO/AIA_LR/{wavelength}/{date}*.jpg"
-            self.jpg_path: Callable[[str], str] = lambda name: f"./data/SDO/AIA_LR/{wavelength}/{name}"
-            self.name: Callable[[str], str] = lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
+            self.scrap_path: Callable[[str], str] = (
+                lambda date: f"./data/SDO/AIA_LR/{wavelength}/{date}*.jpg"
+            )
+            self.jpg_path: Callable[[str], str] = (
+                lambda name: f"./data/SDO/AIA_LR/{wavelength}/{name}"
+            )
+            self.name: Callable[[str], str] = (
+                lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
+            )
             os.makedirs(self.jpg_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
-            new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date, timedelta(days=1)
+            )
             self.new_scrap_date_list = [
                 date
                 for date in new_scrap_date
@@ -260,8 +272,12 @@ class SDO:
             self.url: Callable[[str], str] = (
                 lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_007.fit.gz"
             )
-            self.eve_csv_path: Callable[[str], str]  = lambda date: f"./data/SDO/EVE/{date}.csv"
-            self.eve_fits_gz_path: Callable[[str], str] = lambda date: f"./data/SDO/EVE/{date}.fits.gz"
+            self.eve_csv_path: Callable[[str], str] = (
+                lambda date: f"./data/SDO/EVE/{date}.csv"
+            )
+            self.eve_fits_gz_path: Callable[[str], str] = (
+                lambda date: f"./data/SDO/EVE/{date}.fits.gz"
+            )
             self.eve_path: str = "./data/SDO/EVE/"
             os.makedirs(self.eve_path, exist_ok=True)
 
@@ -284,7 +300,7 @@ class SDO:
                 "1T"
             ).mean().to_csv(self.eve_csv_path(day))
 
-        def get_check_tasks(self, scrap_date: Tuple[datetime,datetime]) -> None:
+        def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -311,7 +327,9 @@ class SDO:
 
         """prep pipeline"""
 
-        def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size) -> pd.DataFrame:
+        def data_prep(
+            self, scrap_date: Tuple[datetime, datetime], step_size
+        ) -> pd.DataFrame:
             init, end = scrap_date
             new_scrap_date = datetime_interval(init, end, step_size)
             dfs = [pd.read_csv(self.eve_csv_path(date)) for date in new_scrap_date]
@@ -322,6 +340,8 @@ class SDO:
                 .loc[init:end]
             )
 
-        async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
+        async def downloader_pipeline(
+            self, scrap_date: Tuple[datetime, datetime], session
+        ):
             self.get_check_tasks(scrap_date)
             await self.download_task(session)

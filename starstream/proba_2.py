@@ -18,8 +18,12 @@ class PROBA_2:
                 lambda date: f"http://proba2.oma.be/lyra/data/bsd/{date[:4]}/{date[4:6]}/{date[6:]}/lyra_{date}-000000_lev3_std.fits"
             )
             self.lyra_folder_path: str = "./data/LYRA/"
-            self.lyra_fits_path: Callable[[str], str] = lambda date: f"./data/LYRA/{date}.fits"
-            self.lyra_csv_path: Callable[[str], str] = lambda date: f"./data/LYRA/{date}.csv"
+            self.lyra_fits_path: Callable[[str], str] = (
+                lambda date: f"./data/LYRA/{date}.fits"
+            )
+            self.lyra_csv_path: Callable[[str], str] = (
+                lambda date: f"./data/LYRA/{date}.csv"
+            )
             self.sl: timedelta = sequence_length
             os.makedirs(self.lyra_folder_path, exist_ok=True)
 
@@ -58,7 +62,9 @@ class PROBA_2:
                     )
             os.remove(self.lyra_fits_path(date))
 
-        async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session) -> None:
+        async def downloader_pipeline(
+            self, scrap_date: Tuple[datetime, datetime], session
+        ) -> None:
             self.get_check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
                 print("Already downloaded!")

@@ -8,6 +8,7 @@ import asyncio
 import os
 from typing import Callable, List, Tuple
 
+
 class CDAWeb:
     phy_obs: List[str]
     batch_size = 8
@@ -69,11 +70,13 @@ class CDAWeb:
         await asyncio.gather(*self.get_preprocessing_tasks())
 
     async def get_df_unit(self, date: str) -> pd.DataFrame:
-        df = await asyncio.get_event_loop().run_in_executor(None, pd.read_csv, self.csv_path(date))
+        df = await asyncio.get_event_loop().run_in_executor(
+            None, pd.read_csv, self.csv_path(date)
+        )
         return df
 
     async def get_df(self, scrap_date: Tuple[datetime, datetime]) -> List[pd.DataFrame]:
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
         dfs = await asyncio.gather(*[self.get_df_unit(date) for date in new_scrap_date])
         return dfs
 
@@ -87,4 +90,3 @@ class CDAWeb:
             .resample(timedelta_to_freq(step_size))
             .mean()
         )
-

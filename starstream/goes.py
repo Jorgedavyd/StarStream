@@ -26,9 +26,10 @@ class GOES16:
         )
 
     def check_data(self, scrap_date: Tuple[datetime, datetime]) -> None:
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
         self.new_scrap_date_list: List[str] = [
-            date for date in new_scrap_date
+            date
+            for date in new_scrap_date
             if len(glob.glob(self.path(date + "*"))) == 0
         ]
 

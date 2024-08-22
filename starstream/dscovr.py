@@ -21,13 +21,30 @@ class DSCOVR(MHD):
     def __init__(self) -> None:
         super().__init__()
 
-        self.fc1_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L1/faraday/{date}.csv"
-        self.mg1_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
-        self.f1m_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L2/faraday/{date}.csv"
-        self.m1m_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L2/magnetometer/{date}.csv"
+        self.fc1_root: Callable[[str], str] = (
+            lambda date: f"./data/DSCOVR/L1/faraday/{date}.csv"
+        )
+        self.mg1_root: Callable[[str], str] = (
+            lambda date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
+        )
+        self.f1m_root: Callable[[str], str] = (
+            lambda date: f"./data/DSCOVR/L2/faraday/{date}.csv"
+        )
+        self.m1m_root: Callable[[str], str] = (
+            lambda date: f"./data/DSCOVR/L2/magnetometer/{date}.csv"
+        )
         self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
-        self.fc_var: List[str] = ["proton_density", "proton_speed", "proton_temperature"]
-        self.roots: List[Callable[[str], str]] = [self.fc1_root, self.mg1_root, self.f1m_root, self.m1m_root]
+        self.fc_var: List[str] = [
+            "proton_density",
+            "proton_speed",
+            "proton_temperature",
+        ]
+        self.roots: List[Callable[[str], str]] = [
+            self.fc1_root,
+            self.mg1_root,
+            self.f1m_root,
+            self.m1m_root,
+        ]
         self.var_meta: Dict[str, List[Callable[[str], str]]] = {
             "fc1": [self.fc1_root, self.fc_var],
             "mg1": [self.mg1_root, self.mg_var],
@@ -125,11 +142,15 @@ class DSCOVR(MHD):
 
     """Prep pipeline"""
 
-    def get_df(self, path: Callable[[str], str], date: str, obs: List[str]) -> pd.DataFrame:
+    def get_df(
+        self, path: Callable[[str], str], date: str, obs: List[str]
+    ) -> pd.DataFrame:
         df = pd.read_csv(self.path(date), index_col=0)
         return df[obs]
 
-    def get_dfs(self, path: Callable[[str], str], scrap_date: List[str], obs: List[str]):
+    def get_dfs(
+        self, path: Callable[[str], str], scrap_date: List[str], obs: List[str]
+    ):
         dfs = [self.get_df(path, date, obs) for date in scrap_date]
         return pd.concat(dfs)
 

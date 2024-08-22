@@ -131,7 +131,10 @@ def flare_hour_steps(
 
 
 def datetime_interval(
-    init: datetime, last: datetime, step_size: Union[relativedelta, timedelta], output_format: str = "%Y%m%d"
+    init: datetime,
+    last: datetime,
+    step_size: Union[relativedelta, timedelta],
+    output_format: str = "%Y%m%d",
 ) -> List[str]:
     current_date = init
     date_list = []
@@ -201,14 +204,16 @@ async def downloader(scrap_date, sat_objs) -> None:
         else:
             await sat_objs.downloader_pipeline(scrap_date, session)
 
+
 def DataDownloading(
     sat_objs: Union[List, Any], scrap_date: List[Tuple[datetime, datetime]]
 ) -> None:
-        if isinstance(scrap_date[0], datetime):
-            asyncio.run(downloader(scrap_date, sat_objs))
-        else:
-            for date in scrap_date:
-                asyncio.run(downloader(date, sat_objs))
+    if isinstance(scrap_date[0], datetime):
+        asyncio.run(downloader(scrap_date, sat_objs))
+    else:
+        for date in scrap_date:
+            asyncio.run(downloader(date, sat_objs))
+
 
 class MHD:
     """

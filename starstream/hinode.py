@@ -19,10 +19,12 @@ class Hinode:
 
         def __init__(self, filetype: str = "png") -> None:
             self.filetype: str = filetype
-            self.path: Callable[[str], str] = lambda name: f"./data/Hinode/XRT/{name}.{filetype}"
+            self.path: Callable[[str], str] = (
+                lambda name: f"./data/Hinode/XRT/{name}.{filetype}"
+            )
             self.xrt_folder_path: str = "./data/Hinode/XRT/"
             self.download_urls: List[str] = []
-            self.url: Callable[[str, str], str]  = (
+            self.url: Callable[[str, str], str] = (
                 lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
             )
             os.makedirs(self.xrt_folder_path, exist_ok=True)

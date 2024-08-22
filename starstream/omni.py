@@ -37,7 +37,9 @@ class OMNI(CDAWeb):
         os.makedirs("./data/OMNI/HRO2/", exist_ok=True)
 
     def check_tasks(self, scrap_date: Tuple[datetime, datetime]):
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, relativedelta(months=1), "%Y%m")
+        new_scrap_date: List[str] = datetime_interval(
+            *scrap_date, relativedelta(months=1), "%Y%m"
+        )
         self.new_scrap_date_list: List[str] = [
             date for date in new_scrap_date if not os.path.exists(self.csv_path(date))
         ]

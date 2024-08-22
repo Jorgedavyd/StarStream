@@ -76,33 +76,44 @@ class ACE:
             self.cdf_path = lambda date: f"./data/ACE/SIS/{date}.cdf"
             self.root_path = "./data/ACE/SIS/"
             self.phy_obs = [
-            "flux_He",
-            "flux_C",
-            "flux_N",
-            "flux_O",
-            "flux_Ne",
-            "flux_Na",
-            "flux_Mg",
-            "flux_Al",
-            "flux_Si",
-            "flux_S",
-            "flux_Ar",
-            "flux_Ca",
-            "flux_Fe",
-            "flux_Ni",
-        ]
+                "flux_He",
+                "flux_C",
+                "flux_N",
+                "flux_O",
+                "flux_Ne",
+                "flux_Na",
+                "flux_Mg",
+                "flux_Al",
+                "flux_Si",
+                "flux_S",
+                "flux_Ar",
+                "flux_Ca",
+                "flux_Fe",
+                "flux_Ni",
+            ]
             self.variables = [f"{name}_{i}" for name in self.phy_obs for i in range(8)]
             self.url = (
-            lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/sis/level_2_cdaweb/sis_h1/{date[:4]}/ac_h1_sis_{date}_{SIS_version(date)}.cdf"
-        )
+                lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/sis/level_2_cdaweb/sis_h1/{date[:4]}/ac_h1_sis_{date}_{SIS_version(date)}.cdf"
+            )
 
     class MAG(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/ACE/MAG/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/ACE/MAG/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/MAG/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/MAG/{date}.cdf"
+            )
             self.root_path: str = "./data/ACE/MAG/"
-            self.phy_obs: List[str] = ["Magnitude", "BGSM", "SC_pos_GSM", "dBrms", "BGSEc", "SC_pos_GSE"]
+            self.phy_obs: List[str] = [
+                "Magnitude",
+                "BGSM",
+                "SC_pos_GSM",
+                "dBrms",
+                "BGSEc",
+                "SC_pos_GSE",
+            ]
             self.variables: List[str] = [
                 "Bnorm",
                 "BGSM_x",
@@ -126,8 +137,12 @@ class ACE:
     class SWEPAM(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/ACE/SWEPAM/{date}.csv"
-            self.cdf_path: Callable[[str], str]  = lambda date: f"./data/ACE/SWEPAM/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/SWEPAM/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/SWEPAM/{date}.cdf"
+            )
             self.root_path: str = "./data/ACE/SWEPAM/"
             self.phy_obs: List[str] = [
                 "Np",
@@ -146,14 +161,18 @@ class ACE:
                 "VGSM_z",
             ]
             self.url: Callable[[str], str] = (
-            lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/swepam/level_2_cdaweb/swe_h0/{date[:4]}/ac_h0_swe_{date}_{SWEPAM_version(date)}.cdf"
-        )
+                lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/swepam/level_2_cdaweb/swe_h0/{date[:4]}/ac_h0_swe_{date}_{SWEPAM_version(date)}.cdf"
+            )
 
     class SWICS(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/ACE/SWICS/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/ACE/SWICS/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/SWICS/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/SWICS/{date}.cdf"
+            )
             self.root_path: str = "./data/ACE/SWICS/"
             self.phy_obs: List[str] = ["nH", "vH", "vthH"]  # variables#change
             self.variables: List[str] = self.phy_obs
@@ -164,8 +183,12 @@ class ACE:
     class EPAM(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/ACE/EPAM/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/ACE/EPAM/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/EPAM/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/ACE/EPAM/{date}.cdf"
+            )
             self.root_path: str = "./data/ACE/EPAM/"
             self.phy_obs: List[str] = [
                 "DE1",
@@ -176,7 +199,7 @@ class ACE:
                 "FP6",  # from RTSW
                 "P7p",
             ]
-            self.variables:List[str] = self.phy_obs  # variables#change
+            self.variables: List[str] = self.phy_obs  # variables#change
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/epam/level_2_cdaweb/epm_h1/{date[:4]}/ac_h1_epm_{date}_{EPAM_version(date)}.cdf"
-        )
+            )
