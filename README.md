@@ -18,8 +18,11 @@ Asynchronous satellite data downloading for CDAWeb, JSOC, etc.
 <img src="https://3.bp.blogspot.com/-YdNujMhGAkI/WeIyjnfiN8I/AAAAAAABAII/JDV2MvutF_kNJ9ManBMmTM-0X4G6m3KiACLcBGAs/s1600/logo_sdo.gif" height = 250 width = 250> <img src="https://lh3.googleusercontent.com/proxy/CuvQ0w53zAeiZ3s1NT1ijGN6Lz801QNO6toQw2ZzwE-3_FTi7bZkin0Q0mzhisLX0Q1_0ftGyYvR4HIxstI5TIJ9rrp6KfFUz47jWfZD" height = 250 width = 250>
 <img src="https://earth.esa.int/eogateway/documents/20142/0/swarm.png/656b6a23-f035-f7e3-78c6-02a47d1a4b6e?t=1608141199732" height = 100 width = 300><img src="http://esdcdoi.esac.esa.int/doi/html/img/Proba2_logo2020.svg" height = 200 width = 200>
 
+## External dependencies
+1. **CDF**: [installation](https://spacepy.github.io/install_linux.html)
+
 ## Example
-```python 
+```python
 from starstream import ACE, DSCOVR
 from starstream.utils import DataDownloading
 from datetime import datetime
@@ -36,7 +39,7 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-    
+
 ```
 ## Citation
 
