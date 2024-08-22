@@ -1,5 +1,6 @@
+from typing import Callable, List, Tuple
 from .utils import asyncFITS, datetime_interval
-from datetime import timedelta
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from io import BytesIO
 import numpy as np
@@ -17,22 +18,22 @@ class Hinode:
         batch_size: int = 1
 
         def __init__(self, filetype: str = "png") -> None:
-            self.filetype = filetype
-            self.path = lambda name: f"./data/Hinode/XRT/{name}.{filetype}"
-            self.xrt_folder_path = "./data/Hinode/XRT/"
-            self.download_urls = []
-            self.url = (
+            self.filetype: str = filetype
+            self.path: Callable[[str], str] = lambda name: f"./data/Hinode/XRT/{name}.{filetype}"
+            self.xrt_folder_path: str = "./data/Hinode/XRT/"
+            self.download_urls: List[str] = []
+            self.url: Callable[[str, str], str]  = (
                 lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
             )
             os.makedirs(self.xrt_folder_path, exist_ok=True)
 
-        def check_tasks(self, scrap_date):
-            scrap_date = datetime_interval(
-                scrap_date[0], scrap_date[-1], timedelta(hours=1), "%Y%m%d-%H%M"
+        def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date, timedelta(hours=1), "%Y%m%d-%H%M"
             )
             self.new_scrap_date_list = [
                 date.split("-")
-                for date in scrap_date
+                for date in new_scrap_date
                 if len(glob.glob(self.path(f'{date.split("-")[0]}*'))) == 0
             ]
 
@@ -81,18 +82,17 @@ class Hinode:
                 for i in range(0, len(scrap_tasks), self.batch_size):
                     await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
 
-        def get_hour_images(self, date):
+        def get_hour_images(self, date: str):
             query_c = "*" + "_".join(date.split("-"))[:-4] + "**"
             return glob.glob(self.path(query_c))
 
-        async def data_prep(self, scrap_date):
-            scrap_date = datetime_interval(
-                scrap_date[0],
-                scrap_date[-1],
-                step_size=timedelta(days=1),
+        async def data_prep(self, scrap_date: Tuple[datetime, datetime]):
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date,
+                timedelta(days=1),
             )
             return [
                 *chain.from_iterable(
-                    [glob.glob(self.path(f"{date}*")) for date in scrap_date]
+                    [glob.glob(self.path(f"{date}*")) for date in new_scrap_date]
                 )
             ]

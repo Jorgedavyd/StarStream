@@ -1,6 +1,5 @@
 from datetime import datetime
 from starstream import *
-import asyncio
 from datetime import timedelta
 
 # Defining default values for tests
@@ -11,38 +10,25 @@ scrap_date_list = [
 
 
 def test_ncei() -> None:
-    asyncio.run(DataDownloading([DSCOVR()], scrap_date_list))
+    DataDownloading(DSCOVR(), scrap_date_list)
 
 
 def test_fits() -> None:
-    asyncio.run(
-        DataDownloading(
-            [
-                Hinode.XRT("fits"),
-                PROBA_2.LYRA(timedelta(minutes=5)),
-                SDO.AIA_HR(timedelta(minutes=2), "171"),
-            ],
-            scrap_date_list,
-        )
+    DataDownloading(
+        [
+            Hinode.XRT("fits"),
+            PROBA_2.LYRA(timedelta(minutes=5)),
+            SDO.AIA_HR(timedelta(minutes=2), "171"),
+        ],
+        scrap_date_list,
     )
-
 
 def test_cdf() -> None:
-    asyncio.run(
-        DataDownloading(
-            [SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()], scrap_date_list
-        )
+    DataDownloading(
+        [SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()], scrap_date_list
     )
 
-<<<<<<< HEAD
 def test_goes() -> None:
-    asyncio.run(
-        DataDownloading(
-            [GOES16('he304', './data')], scrap_date_list
-        )
+    DataDownloading(
+        [GOES16('he304', './data')], scrap_date_list
     )
-=======
->>>>>>> 7bc9cd30e3c04584fa7f84e4dddc614debfa3e74
-
-def test_goes() -> None:
-    asyncio.run(DataDownloading([GOES16("suvi-l1b-he304", "./data")], scrap_date_list))

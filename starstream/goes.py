@@ -1,9 +1,9 @@
 from typing import Callable, List, Tuple, Coroutine
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import glob
 from bs4 import BeautifulSoup
-from starstream.utils import interval_time, syncGZ
+from starstream.utils import datetime_interval, interval_time, syncGZ
 import aiofiles
 import asyncio
 import os
@@ -26,23 +26,22 @@ class GOES16:
         )
 
     def check_data(self, scrap_date: Tuple[datetime, datetime]) -> None:
-        days = interval_time(*scrap_date)
-        self.new_scrap_date_list: List[datetime] = [
-            day
-            for day in days
-            if len(glob.glob(self.path(day.strftime("%Y%m%d")[:4] + "*"))) == 0
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+        self.new_scrap_date_list: List[str] = [
+            date for date in new_scrap_date
+            if len(glob.glob(self.path(date + "*"))) == 0
         ]
 
     def get_scrap_tasks(self, session) -> List[Coroutine]:
         return [self.scrap_url(session, day) for day in self.new_scrap_date_list]
 
-    async def scrap_url(self, session, date: datetime) -> List[Tuple[str, str]]:
-        async with session.get(self.url("", date.strftime("%Y%m%d"))) as request:
+    async def scrap_url(self, session, date: str) -> List[Tuple[str, str]]:
+        async with session.get(self.url("", date)) as request:
             html = await request.html()
             soup = BeautifulSoup(html, "html.parser")
             href = lambda x: x and x.endswith("fits.gz")
             fits_links = soup.find_all("a", href=href)
-            return [(link, date.strftime("%Y%m%d")) for link in fits_links]
+            return [(link, date) for link in fits_links]
 
     async def download_url(self, session, date: str, name: str) -> None:
         url: str = self.url(date, name)

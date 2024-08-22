@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+
+from dateutil.relativedelta import relativedelta
 from astropy.io import fits
 from spacepy import pycdf
 from io import BytesIO
@@ -36,7 +38,7 @@ def hour_steps(init_hour: datetime, last_hour: datetime, step_size: timedelta):
 def l1_hour_steps(
     init_hour: datetime, last_hour: datetime, seq_len: timedelta = timedelta(hours=2)
 ):
-    init_hour = datetime.strptime(init_hour, "%Y%m%d") - seq_len
+    init_hour = init_hour - seq_len
     return datetime.strftime(init_hour, "%Y%m%d-%H%M%S"), datetime.strftime(
         last_hour, "%Y%m%d-%H%M%S"
     )
@@ -129,8 +131,8 @@ def flare_hour_steps(
 
 
 def datetime_interval(
-    init: datetime, last: datetime, step_size: timedelta, output_format: str = "%Y%m%d"
-):
+    init: datetime, last: datetime, step_size: Union[relativedelta, timedelta], output_format: str = "%Y%m%d"
+) -> List[str]:
     current_date = init
     date_list = []
     while current_date <= last:
@@ -145,7 +147,7 @@ def interval_time(
     format="%Y%m%d",
     step_size: timedelta = timedelta(days=1),
     output_format=None,
-):
+) -> List[str]:
     if output_format is None:
         output_format = format
 
@@ -162,7 +164,7 @@ def interval_time(
     return date_list
 
 
-def timedelta_to_freq(timedelta_obj):
+def timedelta_to_freq(timedelta_obj) -> str:
     total_seconds = timedelta_obj.total_seconds()
 
     if total_seconds % 1 != 0:
@@ -187,37 +189,26 @@ def timedelta_to_freq(timedelta_obj):
     return freq_str
 
 
-async def DataDownloading(
+async def downloader(scrap_date, sat_objs) -> None:
+    async with aiohttp.ClientSession() as session:
+        if isinstance(sat_objs, (list, tuple)):
+            await asyncio.gather(
+                *[
+                    sat_obj.downloader_pipeline(scrap_date, session)
+                    for sat_obj in sat_objs
+                ]
+            )
+        else:
+            await sat_objs.downloader_pipeline(scrap_date, session)
+
+def DataDownloading(
     sat_objs: Union[List, Any], scrap_date: List[Tuple[datetime, datetime]]
-):
-    if isinstance(sat_objs, (tuple, list)):
+) -> None:
         if isinstance(scrap_date[0], datetime):
-            async with aiohttp.ClientSession() as session:
-                await asyncio.gather(
-                    *[
-                        sat_obj.downloader_pipeline(scrap_date, session)
-                        for sat_obj in sat_objs
-                    ]
-                )
+            asyncio.run(downloader(scrap_date, sat_objs))
         else:
             for date in scrap_date:
-                async with aiohttp.ClientSession() as session:
-                    await asyncio.gather(
-                        *[
-                            sat_obj.downloader_pipeline(date, session)
-                            for sat_obj in sat_objs
-                        ]
-                    )
-
-    else:
-        if isinstance(scrap_date[0], datetime):
-            async with aiohttp.ClientSession() as session:
-                await sat_objs.downloader_pipeline(scrap_date, session)
-        else:
-            for date in scrap_date:
-                async with aiohttp.ClientSession() as session:
-                    await sat_objs.downloader_pipeline(date, session)
-
+                asyncio.run(downloader(date, sat_objs))
 
 class MHD:
     """

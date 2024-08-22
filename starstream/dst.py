@@ -7,19 +7,17 @@ import aiofiles
 import asyncio
 import asyncio
 import os
+from typing import Callable, List, Tuple
 
 __all__ = ["Dst"]
 
-
 class Dst:
-    root = "./data/Dst_index"
-    csv_path = lambda self, month: f"./data/Dst_index/{month}.csv"
-    os.makedirs(root, exist_ok=True)
-    """
-    Some utils
-    """
+    def __init__(self) -> None:
+        self.root: str = "./data/Dst_index"
+        self.csv_path: Callable[[str], str] = lambda month: f"./data/Dst_index/{month}.csv"
+        os.makedirs(self.root, exist_ok=True)
 
-    def date_to_url(self, month):
+    def date_to_url(self, month: str) -> str:
         if datetime.strptime(month, "%Y%m") > datetime(
             2022, 12, 31
         ):  # UPDATED FOR 2023, 2024, manually update if the page has change
@@ -35,11 +33,11 @@ class Dst:
     Downloader process
     """
 
-    def get_check_tasks(self, scrap_date):
-        scrap_date = datetime_interval(*scrap_date, relativedelta(months=1), "%Y%m")
-        self.new_scrap_date_list = [
+    def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]):
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, relativedelta(months=1), "%Y%m")
+        self.new_scrap_date_list: List[str] = [
             month
-            for month in scrap_date
+            for month in new_scrap_date
             if self.csv_path(month)
             not in [
                 os.path.join(self.root, filename) for filename in os.listdir(self.root)
@@ -65,7 +63,7 @@ class Dst:
 
     """Preprocessing"""
 
-    async def single_import(self, month):
+    async def single_import(self, month) -> pd.DataFrame:
         csv = await asyncio.get_event_loop().run_in_executor(
             None, pd.read_csv, self.csv_path(month)
         )
@@ -76,7 +74,7 @@ class Dst:
         csv.index = pd.timedelta_range(
             start_date, end_date, freq="1H", inclusive="both"
         )
-        return
+        return csv
 
     """Main object pipeline"""
 
@@ -86,8 +84,8 @@ class Dst:
 
     """Prep pipeline"""
 
-    async def data_prep(self, scrap_date):
-        month_scrap = datetime_interval(
+    async def data_prep(self, scrap_date: Tuple[datetime, datetime]):
+        month_scrap: List[str] = datetime_interval(
             scrap_date[0], scrap_date[-1], relativedelta(months=1), "%Y%m"
         )
 
@@ -95,7 +93,7 @@ class Dst:
         last_date = pd.to_datetime(scrap_date[-1])
 
         csvs = await asyncio.gather(
-            *[pd.from_pandas(await self.single_import(month)) for month in month_scrap]
+            *[self.single_import(month) for month in month_scrap]
         )
-        serie = pd.concat(csvs, axis=0)
+        serie = pd.concat(csvs)
         return serie[(serie.index >= init_date) & (serie.index <= last_date)]

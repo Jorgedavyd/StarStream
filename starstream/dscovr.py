@@ -1,3 +1,4 @@
+from types import coroutine
 from .utils import datetime_interval, timedelta_to_freq, asyncGZ
 from datetime import timedelta, datetime
 from .utils import MHD
@@ -6,7 +7,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Sequence, Tuple
+from typing import Coroutine, Dict, Sequence, Tuple, Callable, List
 import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -17,27 +18,28 @@ __all__ = ["DSCOVR"]
 
 
 class DSCOVR(MHD):
-    fc1_root = lambda self, date: f"./data/DSCOVR/L1/faraday/{date}.csv"
-    mg1_root = lambda self, date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
-    f1m_root = lambda self, date: f"./data/DSCOVR/L2/faraday/{date}.csv"
-    m1m_root = lambda self, date: f"./data/DSCOVR/L2/magnetometer/{date}.csv"
-    mg_var = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
-    fc_var = ["proton_density", "proton_speed", "proton_temperature"]
-    roots = [fc1_root, mg1_root, f1m_root, m1m_root]
-    var_meta = {
-        "fc1": [fc1_root, fc_var],
-        "mg1": [mg1_root, mg_var],
-        "f1m": [f1m_root, fc_var],
-        "m1m": [m1m_root, mg_var],
-    }
-
     def __init__(self) -> None:
+        super().__init__()
+
+        self.fc1_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L1/faraday/{date}.csv"
+        self.mg1_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
+        self.f1m_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L2/faraday/{date}.csv"
+        self.m1m_root: Callable[[str], str] = lambda date: f"./data/DSCOVR/L2/magnetometer/{date}.csv"
+        self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
+        self.fc_var: List[str] = ["proton_density", "proton_speed", "proton_temperature"]
+        self.roots: List[Callable[[str], str]] = [self.fc1_root, self.mg1_root, self.f1m_root, self.m1m_root]
+        self.var_meta: Dict[str, List[Callable[[str], str]]] = {
+            "fc1": [self.fc1_root, self.fc_var],
+            "mg1": [self.mg1_root, self.mg_var],
+            "f1m": [self.f1m_root, self.fc_var],
+            "m1m": [self.m1m_root, self.mg_var],
+        }
         os.makedirs("./data/DSCOVR/L1/faraday/", exist_ok=True)
         os.makedirs("./data/DSCOVR/L1/magnetometer/", exist_ok=True)
         os.makedirs("./data/DSCOVR/L2/faraday/", exist_ok=True)
         os.makedirs("./data/DSCOVR/L2/magnetometer/", exist_ok=True)
 
-    def to_unix(self, scrap_date: Sequence[datetime]) -> int:
+    def to_unix(self, scrap_date: Sequence[datetime]) -> List[int]:
         timestamp = [
             int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
             for date in scrap_date
@@ -86,71 +88,70 @@ class DSCOVR(MHD):
         with open(update_path, "x") as file:
             file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-    def check_tasks(self, scrap_date: tuple[datetime, datetime]):
+    def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
         self.check_update(scrap_date)
-        scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days=1))
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
         self.new_scrap_date_list = [
-            date for date in scrap_date if not os.path.exists(self.mg1_root(date))
+            date for date in new_scrap_date if not os.path.exists(self.mg1_root(date))
         ]
 
-    def gz_processing(self, gz_file, url, date):
+    def gz_processing(self, gz_file, url: str, date: str) -> None:
         tool = url.split("_")[1]
         dataset = xr.open_dataset(gz_file.read())
         df = dataset.to_dataframe()
         dataset.close()
         faraday_cup = df[self.var_meta[tool][1]]
         faraday_cup = faraday_cup.resample("1T").mean()
-        faraday_cup.to_csv(self.var_meta[tool][0](self, date))
+        faraday_cup.to_csv(self.var_meta[tool][0](date))
 
-    async def download_url(self, url, date, session):
+    async def download_url(self, url: str, date: str, session) -> None:
         async with session.get(url, ssl=True) as response:
             data = await response.read()
             await asyncGZ(BytesIO(data), self.gz_processing, url, date)
 
-    def get_urls(self, scrap_date):
+    def get_urls(self) -> List[str]:
         with open(osp.join(osp.dirname(__file__), "trivials/url.txt"), "r") as file:
             lines = file.readlines()
         url_list = []
         for url in lines:
-            for date in scrap_date:
+            for date in self.new_scrap_date_list:
                 if date + "000000" in url:
                     url_list.append((url, date))
         return url_list
 
-    def get_download_tasks(self, session):
-        self.urls_dates = self.get_urls(self.new_scrap_date_list)
+    def get_download_tasks(self, session) -> List[Coroutine]:
+        self.urls_dates = self.get_urls()
         return [self.download_url(url, date, session) for url, date in self.urls_dates]
 
     """Prep pipeline"""
 
-    def get_df(self, path, ind_date, obs):
-        df = pd.read_csv(path + ind_date + ".csv", index_col=0)
-        df = df[obs]
-        return df
+    def get_df(self, path: Callable[[str], str], date: str, obs: List[str]) -> pd.DataFrame:
+        df = pd.read_csv(self.path(date), index_col=0)
+        return df[obs]
 
-    def get_dfs(self, path, scrap_date, obs):
+    def get_dfs(self, path: Callable[[str], str], scrap_date: List[str], obs: List[str]):
         dfs = [self.get_df(path, date, obs) for date in scrap_date]
         return pd.concat(dfs)
 
-    def data_prep(self, scrap_date, step_size: timedelta):
+    def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta):
         init, end = [pd.to_datetime(date) for date in scrap_date]
-        scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days=1))
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
 
         fc1 = self.get_dfs(
             self.fc1_root,
-            scrap_date,
+            new_scrap_date,
             ["proton_density", "proton_speed", "proton_temperature"],
         )
         mg1 = self.get_dfs(
-            self.mg1_root, scrap_date, ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
+            self.mg1_root, new_scrap_date, ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         )
         f1m = self.get_dfs(
             self.f1m_root,
-            scrap_date,
+            new_scrap_date,
             ["proton_density", "proton_speed", "proton_temperature"],
         )
         m1m = self.get_dfs(
-            self.m1m_root, scrap_date, ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
+            self.m1m_root, new_scrap_date, ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         )
 
         l1 = pd.concat(
