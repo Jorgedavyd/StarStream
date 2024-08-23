@@ -29,5 +29,6 @@ def test_cdf() -> None:
         [SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()], scrap_date_list
     )
 
+
 def test_goes() -> None:
     DataDownloading([GOES16("he304", "./data")], scrap_date_list)
