@@ -8,7 +8,6 @@ from datetime import datetime
 
 if __name__ == '__main__':
     DataDownloading(SAMPLE_SAT_1(...),(datetime(2014, 12, 12), datetime(2014, 12, 30)))
-
 ```
 
 

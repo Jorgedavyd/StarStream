@@ -16,22 +16,21 @@ import chromedriver_binary  # Adds chromedriver binary to path
 
 __all__ = ["DSCOVR"]
 
-
 class DSCOVR(MHD):
-    def __init__(self) -> None:
+    def __init__(self, path: str = './data') -> None:
         super().__init__()
 
         self.fc1_root: Callable[[str], str] = (
-            lambda date: f"./data/DSCOVR/L1/faraday/{date}.csv"
+            lambda date: os.path.join(path, f"DSCOVR/L1/faraday/{date}.csv")
         )
         self.mg1_root: Callable[[str], str] = (
-            lambda date: f"./data/DSCOVR/L1/magnetometer/{date}.csv"
+            lambda date: os.path.join(path, f"DSCOVR/L1/magnetometer/{date}.csv")
         )
         self.f1m_root: Callable[[str], str] = (
-            lambda date: f"./data/DSCOVR/L2/faraday/{date}.csv"
+            lambda date: os.path.join(path, f"DSCOVR/L2/faraday/{date}.csv")
         )
         self.m1m_root: Callable[[str], str] = (
-            lambda date: f"./data/DSCOVR/L2/magnetometer/{date}.csv"
+            lambda date: os.path.join(path, f"DSCOVR/L2/magnetometer/{date}.csv")
         )
         self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         self.fc_var: List[str] = [
@@ -145,7 +144,7 @@ class DSCOVR(MHD):
     def get_df(
         self, path: Callable[[str], str], date: str, obs: List[str]
     ) -> pd.DataFrame:
-        df = pd.read_csv(self.path(date), index_col=0)
+        df = pd.read_csv(path(date), index_col=0)
         return df[obs]
 
     def get_dfs(
