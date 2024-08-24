@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime, timedelta
 import glob
 from bs4 import BeautifulSoup
-from starstream.utils import datetime_interval, interval_time, syncGZ
+from starstream.utils import datetime_interval, handle_client_connection_error, interval_time, syncGZ
 import aiofiles
 import asyncio
 import os
@@ -43,7 +43,7 @@ class GOES16:
             href = lambda x: x and x.endswith("fits.gz")
             fits_links = soup.find_all("a", href=href)
             return [(link, date) for link in fits_links]
-
+    @handle_client_connection_error(max_retries=3, increment='exp', default_cooldown=5)
     async def download_url(self, session, date: str, name: str) -> None:
         url: str = self.url(date, name)
         async with session.get(url) as request:

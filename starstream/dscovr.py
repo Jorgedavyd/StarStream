@@ -1,5 +1,5 @@
 from types import coroutine
-from .utils import datetime_interval, timedelta_to_freq, asyncGZ
+from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq, asyncGZ
 from datetime import timedelta, datetime
 from .utils import MHD
 from io import BytesIO
@@ -120,6 +120,7 @@ class DSCOVR(MHD):
         faraday_cup = faraday_cup.resample("1T").mean()
         faraday_cup.to_csv(self.var_meta[tool][0](date))
 
+    @handle_client_connection_error(default_cooldown=5,max_retries=3,increment='exp')
     async def download_url(self, url: str, date: str, session) -> None:
         async with session.get(url, ssl=True) as response:
             data = await response.read()

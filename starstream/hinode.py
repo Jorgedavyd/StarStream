@@ -1,5 +1,5 @@
 from typing import Callable, List, Tuple
-from .utils import asyncFITS, datetime_interval
+from .utils import asyncFITS, datetime_interval, handle_client_connection_error
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from io import BytesIO
@@ -64,6 +64,7 @@ class Hinode:
             image = fits_file[0].data
             np.save(path, image)
 
+        @handle_client_connection_error(max_retries=3, increment='exp', default_cooldown=5)
         async def download_url(self, session, url):
             async with session.get(url, ssl=False) as response:
                 data = await response.read()

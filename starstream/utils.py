@@ -1,5 +1,7 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
-
+import functools
+from aiohttp import ClientConnectionError
 from dateutil.relativedelta import relativedelta
 from astropy.io import fits
 from spacepy import pycdf
@@ -10,7 +12,7 @@ import tarfile
 import gzip
 from inspect import iscoroutinefunction
 import aiohttp
-from typing import Tuple, List, Any, Union
+from typing import Dict, Tuple, List, Any, Union
 import pandas as pd
 
 __all__ = ["DataDownloading", "MHD"]
@@ -283,3 +285,30 @@ class MHD:
             df[magnetic_field_norm], df[proton_density], df[proton_temperature]
         )
         return df
+
+def handle_client_connection_error(default_cooldown: int, max_retries: int = 100, increment = 'exp') -> Callable:
+    assert (increment in ['exp', 'linear'])
+
+    VALID_HANDLE: Dict[str, Callable[[int], Union[int, float]]] = {
+        'exp': lambda retries: 2**retries + default_cooldown,
+        'linear': lambda retries: 2*retries + default_cooldown,
+    }
+
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except (ClientConnectionError, asyncio.TimeoutError) as e:
+                    retry_in = VALID_HANDLE[increment](retries)
+                    print(f"Attempt {retries} failed.")
+                    print(f"Connection error encountered: {e}, retrying in {retry_in} seconds..")
+                    await asyncio.sleep(retry_in)
+                    retries += 1
+            print(f"Max retries ({max_retries}) reached. Operation failed.")
+            raise ClientConnectionError("Max retries exceeded.")
+        return wrapper
+    return decorator
+

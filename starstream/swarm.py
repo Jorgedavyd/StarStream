@@ -29,7 +29,6 @@ def separate_intervals(date_list):
 
 
 def mag_ion_transform(df: pd.DataFrame):
-    "Bx", "By", "Bz", "Ehx", "Ehy", "Ehz", "Evx", "Evy", "Evz", "Vicrx", "Vicry", "Vicrz", "Vixv", "Vixh", "Viy", "Viz"
     nec_transform = joblib.load("2nec.pkl")
     df[["Bx", "By", "Bz"]] = nec_transform(df[["Bx", "By", "Bz"]].values)
     df[["Ehx", "Ehy", "Ehz"]] = nec_transform(df[["Ehx", "Ehy", "Ehz"]].values)

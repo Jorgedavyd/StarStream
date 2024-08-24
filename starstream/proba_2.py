@@ -1,5 +1,5 @@
 from typing import Callable, Coroutine, List, Tuple
-from .utils import datetime_interval
+from .utils import datetime_interval, handle_client_connection_error
 from astropy.io import fits
 from io import BytesIO
 import numpy as np
@@ -42,6 +42,7 @@ class PROBA_2:
                 self.download_url(session, date) for date in self.new_scrap_date_list
             ]
 
+        @handle_client_connection_error(max_retries = 3, default_cooldown=5, increment = 'exp')
         async def download_url(self, session, date: str) -> None:
             async with session.get(self.url(date), ssl=False) as response:
                 data = await response.read()
