@@ -43,7 +43,8 @@ class OMNI(CDAWeb):
         self.new_scrap_date_list: List[str] = [
             date for date in new_scrap_date if not os.path.exists(self.csv_path(date))
         ]
-    @handle_client_connection_error(max_retries = 3, default_cooldown=5, increment = 'exp')
+
+    @handle_client_connection_error(max_retries=3, default_cooldown=5, increment="exp")
     async def download_url(self, session, date: str):
         async with session.get(self.url(date), ssl=False) as response:
             cdf_data = await response.read()

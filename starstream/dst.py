@@ -53,7 +53,7 @@ class Dst:
     def get_download_tasks(self, session):
         return [self.download_url(month, session) for month in self.new_scrap_date_list]
 
-    @handle_client_connection_error(default_cooldown=5, max_retries=3, increment = 'exp')
+    @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def download_url(self, month, session):
         async with session.get(self.date_to_url(month), ssl=False) as request:
             data = await request.text()

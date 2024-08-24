@@ -49,7 +49,9 @@ class STEREO:
                         name for size, name in zip(sizes, names) if size.endswith("M")
                     ]
 
-            @handle_client_connection_error(increment = 'exp', default_cooldown=5, max_retries=3)
+            @handle_client_connection_error(
+                increment="exp", default_cooldown=5, max_retries=3
+            )
             async def download_url(self, session, name: str) -> None:
                 async with session.get(
                     self.url(name.split("_")[0], name), ssl=False

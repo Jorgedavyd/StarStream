@@ -17,10 +17,20 @@ class SOHO:
     class CELIAS_SEM(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/SOHO/CELIAS_SEM/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/SOHO/CELIAS_SEM/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/CELIAS_SEM/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/CELIAS_SEM/{date}.cdf"
+            )
             self.root_path: str = self.cdf_path("", "")[:-4]
-            self.phy_obs: List[str] = ["CH1", "CH2", "CH3", "first_order_flux", "central_order_flux"]
+            self.phy_obs: List[str] = [
+                "CH1",
+                "CH2",
+                "CH3",
+                "first_order_flux",
+                "central_order_flux",
+            ]
             self.variables: List[str] = self.phy_obs
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/celias/sem_15s/{date[:4]}/soho_celias-sem_15s_{date}_v04.cdf"
@@ -29,8 +39,12 @@ class SOHO:
     class CELIAS_PM(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/SOHO/CELIAS_PM/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/SOHO/CELIAS_PM/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/CELIAS_PM/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/CELIAS_PM/{date}.cdf"
+            )
             self.root_path: str = cdf_path("", "")[:-4]
             self.phy_obs: List[str] = [
                 "N_p",
@@ -47,8 +61,12 @@ class SOHO:
     class ERNE(CDAWeb):
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/SOHO/ERNE/{date}.csv"
-            self.cdf_path: Callable[[str], str] = lambda date: f"./data/SOHO/ERNE/{date}.cdf"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/ERNE/{date}.csv"
+            )
+            self.cdf_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/ERNE/{date}.cdf"
+            )
             self.root_path: str = cdf_path("", "")[:-4]
             self.phy_obs: List[str] = [
                 "C_intensity",
@@ -61,7 +79,9 @@ class SOHO:
                 "SiAr_intensity",
                 "FeCoNi_intensity",
             ]
-            self.variables: List[str] = [f"{isotop}_{i}" for isotop in phy_obs for i in range(10)]
+            self.variables: List[str] = [
+                f"{isotop}_{i}" for isotop in phy_obs for i in range(10)
+            ]
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
@@ -69,10 +89,16 @@ class SOHO:
     class COSTEP_EPHIN:
         def __init__(self) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.csv"
+            self.csv_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.csv"
+            )
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
-            self.l3i_path: Callable[[str], str] = lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.l3i"
-            self.url: str = "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
+            self.l3i_path: Callable[[str], str] = (
+                lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.l3i"
+            )
+            self.url: str = (
+                "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
+            )
             self.name: str = "COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
             self.columns: List[str] = [
                 "year",
@@ -106,7 +132,9 @@ class SOHO:
             else:
                 self.new_scrap_date_list = scrap_date
 
-        @handle_client_connection_error(max_retries = 5, default_cooldown=5, increment='exp')
+        @handle_client_connection_error(
+            max_retries=5, default_cooldown=5, increment="exp"
+        )
         async def download_url(self, session):
             os.makedirs(self.root)
             async with session.get(self.url, ssl=True) as response:

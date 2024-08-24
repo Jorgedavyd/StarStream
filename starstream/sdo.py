@@ -1,4 +1,9 @@
-from .utils import datetime_interval, timedelta_to_freq, asyncGZFITS, handle_client_connection_error
+from .utils import (
+    datetime_interval,
+    timedelta_to_freq,
+    asyncGZFITS,
+    handle_client_connection_error,
+)
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -86,7 +91,9 @@ class SDO:
                 for i in range(0, len(names), self.step_size // self.min_step_size)
             ]
 
-        @handle_client_connection_error(increment = 'exp', default_cooldown=5, max_retries=3)
+        @handle_client_connection_error(
+            increment="exp", default_cooldown=5, max_retries=3
+        )
         async def scrap_names(self, date):
             url = self.url(date, "")
             async with aiohttp.ClientSession() as client:
@@ -97,7 +104,9 @@ class SDO:
         def find_all(self, soup):
             return soup.find_all("a", href=lambda href: href.endswith(".jp2"))
 
-        @handle_client_connection_error(increment = 'exp', default_cooldown=5, max_retries=3)
+        @handle_client_connection_error(
+            increment="exp", default_cooldown=5, max_retries=3
+        )
         async def download_from_name(self, name):
             date = name.split("_")[0]
             url = self.url(date, name)

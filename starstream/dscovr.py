@@ -1,5 +1,10 @@
 from types import coroutine
-from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq, asyncGZ
+from .utils import (
+    datetime_interval,
+    handle_client_connection_error,
+    timedelta_to_freq,
+    asyncGZ,
+)
 from datetime import timedelta, datetime
 from .utils import MHD
 from io import BytesIO
@@ -16,21 +21,22 @@ import chromedriver_binary  # Adds chromedriver binary to path
 
 __all__ = ["DSCOVR"]
 
+
 class DSCOVR(MHD):
-    def __init__(self, path: str = './data') -> None:
+    def __init__(self, path: str = "./data") -> None:
         super().__init__()
 
-        self.fc1_root: Callable[[str], str] = (
-            lambda date: os.path.join(path, f"DSCOVR/L1/faraday/{date}.csv")
+        self.fc1_root: Callable[[str], str] = lambda date: os.path.join(
+            path, f"DSCOVR/L1/faraday/{date}.csv"
         )
-        self.mg1_root: Callable[[str], str] = (
-            lambda date: os.path.join(path, f"DSCOVR/L1/magnetometer/{date}.csv")
+        self.mg1_root: Callable[[str], str] = lambda date: os.path.join(
+            path, f"DSCOVR/L1/magnetometer/{date}.csv"
         )
-        self.f1m_root: Callable[[str], str] = (
-            lambda date: os.path.join(path, f"DSCOVR/L2/faraday/{date}.csv")
+        self.f1m_root: Callable[[str], str] = lambda date: os.path.join(
+            path, f"DSCOVR/L2/faraday/{date}.csv"
         )
-        self.m1m_root: Callable[[str], str] = (
-            lambda date: os.path.join(path, f"DSCOVR/L2/magnetometer/{date}.csv")
+        self.m1m_root: Callable[[str], str] = lambda date: os.path.join(
+            path, f"DSCOVR/L2/magnetometer/{date}.csv"
         )
         self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         self.fc_var: List[str] = [
@@ -120,7 +126,7 @@ class DSCOVR(MHD):
         faraday_cup = faraday_cup.resample("1T").mean()
         faraday_cup.to_csv(self.var_meta[tool][0](date))
 
-    @handle_client_connection_error(default_cooldown=5,max_retries=3,increment='exp')
+    @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def download_url(self, url: str, date: str, session) -> None:
         async with session.get(url, ssl=True) as response:
             data = await response.read()

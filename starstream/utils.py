@@ -286,12 +286,15 @@ class MHD:
         )
         return df
 
-def handle_client_connection_error(default_cooldown: int, max_retries: int = 100, increment = 'exp') -> Callable:
-    assert (increment in ['exp', 'linear'])
+
+def handle_client_connection_error(
+    default_cooldown: int, max_retries: int = 100, increment="exp"
+) -> Callable:
+    assert increment in ["exp", "linear"]
 
     VALID_HANDLE: Dict[str, Callable[[int], Union[int, float]]] = {
-        'exp': lambda retries: 2**retries + default_cooldown,
-        'linear': lambda retries: 2*retries + default_cooldown,
+        "exp": lambda retries: 2**retries + default_cooldown,
+        "linear": lambda retries: 2 * retries + default_cooldown,
     }
 
     def decorator(func):
@@ -304,11 +307,14 @@ def handle_client_connection_error(default_cooldown: int, max_retries: int = 100
                 except (ClientConnectionError, asyncio.TimeoutError) as e:
                     retry_in = VALID_HANDLE[increment](retries)
                     print(f"Attempt {retries} failed.")
-                    print(f"Connection error encountered: {e}, retrying in {retry_in} seconds..")
+                    print(
+                        f"Connection error encountered: {e}, retrying in {retry_in} seconds.."
+                    )
                     await asyncio.sleep(retry_in)
                     retries += 1
             print(f"Max retries ({max_retries}) reached. Operation failed.")
             raise ClientConnectionError("Max retries exceeded.")
-        return wrapper
-    return decorator
 
+        return wrapper
+
+    return decorator

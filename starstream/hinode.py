@@ -64,7 +64,9 @@ class Hinode:
             image = fits_file[0].data
             np.save(path, image)
 
-        @handle_client_connection_error(max_retries=3, increment='exp', default_cooldown=5)
+        @handle_client_connection_error(
+            max_retries=3, increment="exp", default_cooldown=5
+        )
         async def download_url(self, session, url):
             async with session.get(url, ssl=False) as response:
                 data = await response.read()
