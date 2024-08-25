@@ -23,7 +23,7 @@ class SOHO:
             self.cdf_path: Callable[[str], str] = (
                 lambda date: f"./data/SOHO/CELIAS_SEM/{date}.cdf"
             )
-            self.root_path: str = self.cdf_path("", "")[:-4]
+            self.root_path: str = self.cdf_path("")[:-4]
             self.phy_obs: List[str] = [
                 "CH1",
                 "CH2",
@@ -45,7 +45,7 @@ class SOHO:
             self.cdf_path: Callable[[str], str] = (
                 lambda date: f"./data/SOHO/CELIAS_PM/{date}.cdf"
             )
-            self.root_path: str = cdf_path("", "")[:-4]
+            self.root_path: str = self.cdf_path("")[:-4]
             self.phy_obs: List[str] = [
                 "N_p",
                 "V_p",
@@ -67,7 +67,7 @@ class SOHO:
             self.cdf_path: Callable[[str], str] = (
                 lambda date: f"./data/SOHO/ERNE/{date}.cdf"
             )
-            self.root_path: str = cdf_path("", "")[:-4]
+            self.root_path: str = self.cdf_path("")[:-4]
             self.phy_obs: List[str] = [
                 "C_intensity",
                 "N_intensity",

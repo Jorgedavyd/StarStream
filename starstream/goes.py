@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from starstream.utils import (
     datetime_interval,
     handle_client_connection_error,
-    interval_time,
     syncGZ,
 )
 import aiofiles

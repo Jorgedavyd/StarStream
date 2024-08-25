@@ -1,4 +1,3 @@
-from types import coroutine
 from .utils import (
     datetime_interval,
     handle_client_connection_error,
