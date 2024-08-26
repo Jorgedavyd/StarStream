@@ -16,9 +16,8 @@ import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
 from selenium import webdriver
+import chromedriver_binary
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 __all__ = ["DSCOVR"]
 
@@ -93,8 +92,7 @@ class DSCOVR(MHD):
         )
         op = Options()
         op.add_argument("headless")
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service = service, options = op)
+        driver = webdriver.Chrome(options = op)
         driver.get(url(unix))
         # Wait for rendering
         time.sleep(10)
