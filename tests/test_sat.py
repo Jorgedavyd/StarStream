@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from ..starstream import *
+from starstream import *
 
 # Defining default values for tests
 scrap_date_list = [
