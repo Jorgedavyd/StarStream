@@ -46,7 +46,7 @@ class GOES16:
             soup = BeautifulSoup(html, "html.parser")
             href = lambda x: x and x.endswith("fits.gz")
             fits_links = soup.find_all("a", href=href)
-            return [(link, date) for link in fits_links]
+            return [(link['href'], date) for link in fits_links]
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
     async def download_url(self, session, date: str, name: str) -> None:
