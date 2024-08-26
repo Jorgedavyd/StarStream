@@ -42,7 +42,7 @@ class GOES16:
 
     async def scrap_url(self, session, date: str) -> List[Tuple[str, str]]:
         async with session.get(self.url("", date)) as request:
-            html = await request.html()
+            html = await request.text()
             soup = BeautifulSoup(html, "html.parser")
             href = lambda x: x and x.endswith("fits.gz")
             fits_links = soup.find_all("a", href=href)

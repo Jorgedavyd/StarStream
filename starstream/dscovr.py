@@ -77,7 +77,7 @@ class DSCOVR(MHD):
                 self.scrap_links((date + timedelta(days=1), scrap_date[-1]))
         except FileNotFoundError:
             # create the folder where the urls will be stored
-            os.makedirs(osp.dirname(update_path), exist_ok=False)
+            os.makedirs(osp.dirname(update_path), exist_ok=True)
             # scrap links from the page
             self.scrap_links(
                 (datetime(2016, 7, 26), datetime.today() - timedelta(days=1))

@@ -1,8 +1,33 @@
-from setuptools import setup, find_packages
-
+from setuptools import setup, find_packages, Command
+from setuptools.command.install import install
+from webdriver_manager.chrome import ChromeDriverManager
 from starstream import __version__
 
 from pathlib import Path
+
+class CustomInstallation(install):
+    def run(self) -> None:
+        self.run_command('install_chromedriver')
+        install.run(self)
+
+class InstallChromeDriverCommand(Command):
+    description = "Install the appropriate ChromeDriver using webdriver-manager."
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        try:
+            driver_path = ChromeDriverManager().install()
+            print(f"ChromeDriver installed at: {driver_path}")
+        except Exception as e:
+            print(f"Failed to install ChromeDriver: {e}")
+            raise
+
 
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
@@ -28,8 +53,8 @@ if __name__ == "__main__":
             "numpy",
             "aiofiles",
             "beautifulsoup4",
-            "selenium==4.18.1",
-            "chromedriver-binary==125.0.6422.76.0",
+            "selenium",
+            "webdriver-manager",
             "pandas",
             "pillow",
             "joblib",
@@ -72,4 +97,8 @@ if __name__ == "__main__":
             "Natural Language :: English",
             "Typing :: Typed",
         ],
+        cmdclass = {
+            'install': CustomInstallation,
+            'install_chromedriver': InstallChromeDriverCommand,
+        }
     )
