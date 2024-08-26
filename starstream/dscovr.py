@@ -16,8 +16,8 @@ import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
 from selenium import webdriver
-from selenium.webdriver.service import Service
-from selenium.webdriver.options import Options
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 __all__ = ["DSCOVR"]
