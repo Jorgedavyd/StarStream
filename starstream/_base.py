@@ -45,7 +45,7 @@ class CDAWeb:
     def get_download_tasks(self, session):
         return [self.download_url(session, date) for date in self.new_scrap_date_list]
 
-    @handle_client_connection_error(default_cooldown=5, increment='exp', max_retries=5)
+    @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
     async def download_url(self, session, date: str):
         url = self.url(date)
         async with session.get(url, ssl=False) as response:
