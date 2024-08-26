@@ -5,10 +5,12 @@ from starstream import __version__
 
 from pathlib import Path
 
+
 class CustomInstallation(install):
     def run(self) -> None:
-        self.run_command('install_chromedriver')
+        self.run_command("install_chromedriver")
         install.run(self)
+
 
 class InstallChromeDriverCommand(Command):
     description = "Install the appropriate ChromeDriver using webdriver-manager."
@@ -97,8 +99,8 @@ if __name__ == "__main__":
             "Natural Language :: English",
             "Typing :: Typed",
         ],
-        cmdclass = {
-            'install': CustomInstallation,
-            'install_chromedriver': InstallChromeDriverCommand,
-        }
+        cmdclass={
+            "install": CustomInstallation,
+            "install_chromedriver": InstallChromeDriverCommand,
+        },
     )
