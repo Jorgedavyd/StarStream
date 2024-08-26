@@ -16,7 +16,9 @@ import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
 from selenium import webdriver
-import chromedriver_binary  # Adds chromedriver binary to path
+from selenium.webdriver.service import Service
+from selenium.webdriver.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 
 __all__ = ["DSCOVR"]
 
@@ -89,10 +91,10 @@ class DSCOVR(MHD):
         url = (
             lambda unix: f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
         )
-        # Render a chrome like browser to enter the url
-        op = webdriver.ChromeOptions()
+        op = Options()
         op.add_argument("headless")
-        driver = webdriver.Chrome(options=op)
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service = service, options = op)
         driver.get(url(unix))
         # Wait for rendering
         time.sleep(10)
