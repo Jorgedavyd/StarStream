@@ -21,7 +21,6 @@ if __name__ == "__main__":
         install_requires=[
             "spacepy",
             "astropy",
-            "dateutil",
             "xarray",
             "selenium==4.23.1",
             "chromedriver-binary==128.*",
