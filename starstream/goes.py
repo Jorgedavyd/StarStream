@@ -17,18 +17,23 @@ import os
 
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
 
+
 class GOES16:
-    def __init__(self, instrument: str, path: str = "./data/GOES16/", granularity: float = 1., batch_size: int = 10) -> None:
+    def __init__(
+        self,
+        instrument: str,
+        path: str = "./data/GOES16/",
+        granularity: float = 1.0,
+        batch_size: int = 10,
+    ) -> None:
         assert 0 <= granularity <= 1
         assert instrument in VALID_INSTRUMENTS
         self.batch_size: int = batch_size
         instrument = f"suvi-l1b-{instrument}"
         root: str = os.path.join(path, instrument)
         self.granularity: float = granularity
-        os.makedirs(root, exist_ok = True)
-        self.path: Callable[[str], str] = lambda name: os.path.join(
-            root, name
-        )
+        os.makedirs(root, exist_ok=True)
+        self.path: Callable[[str], str] = lambda name: os.path.join(root, name)
         self.url: Callable[[str, str], str] = (
             lambda name, date: f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/goes16/l1b/{instrument}/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
         )
@@ -51,19 +56,27 @@ class GOES16:
         url: str = self.url("", date)
         async with session.get(url) as request:
             if request.status != 200:
-                print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                print(
+                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                )
                 self.new_scrap_date_list.remove(date)
             else:
                 html = await request.text()
-                if '404 Not Found' in html:
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                if "404 Not Found" in html:
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                     return
                 soup = BeautifulSoup(html, "html.parser")
                 href = lambda x: x and x.endswith("fits.gz")
                 fits_links = soup.find_all("a", href=href)
-                names = [(link['href'], date) for link in fits_links]
-                names = [name for idx, name in enumerate(names) if idx%round(1/self.granularity)==0]
+                names = [(link["href"], date) for link in fits_links]
+                names = [
+                    name
+                    for idx, name in enumerate(names)
+                    if idx % round(1 / self.granularity) == 0
+                ]
                 return names
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
@@ -72,22 +85,30 @@ class GOES16:
         path: str = self.path(name)
         async with session.get(url) as request:
             if request.status != 200:
-                print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                print(
+                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                )
                 self.new_scrap_date_list.remove(date)
             else:
                 data = await request.read()
-                if data.startswith(b'<html>'):
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                if data.startswith(b"<html>"):
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                     return
                 async with aiofiles.open(path, "wb") as file:
                     await file.write(data)
 
-    def get_download_tasks(self, session, fits_names: List[Tuple[str, str]]) -> List[Coroutine]:
+    def get_download_tasks(
+        self, session, fits_names: List[Tuple[str, str]]
+    ) -> List[Coroutine]:
         print(f"{self.__class__.__name__}: Downloading...")
         return [self.download_url(session, date, name) for name, date in fits_names]
 
-    def get_preprocessing_tasks(self, fits_names: List[Tuple[str, str]]) -> List[Coroutine]:
+    def get_preprocessing_tasks(
+        self, fits_names: List[Tuple[str, str]]
+    ) -> List[Coroutine]:
         print(f"{self.__class__.__name__}: Preprocessing...")
         return [self.preprocess(name) for name, _ in fits_names]
 
@@ -97,9 +118,8 @@ class GOES16:
         fits_file = gzip_file.read()
         gzip_file.close()
         os.remove(path)
-        async with aiofiles.open(path[:-3], 'xb') as file:
+        async with aiofiles.open(path[:-3], "xb") as file:
             await file.write(fits_file)
-
 
     async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
         self.check_data(scrap_date)
@@ -109,7 +129,10 @@ class GOES16:
             fixed_fits_links = []
             scrap_tasks = self.get_scrap_tasks(session)
 
-            for i in tqdm(range(0, len(scrap_tasks), self.batch_size), description = f'Scrapping URLs for {self.__class__.__name__}'):
+            for i in tqdm(
+                range(0, len(scrap_tasks), self.batch_size),
+                description=f"Scrapping URLs for {self.__class__.__name__}",
+            ):
                 fits_links = await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
                 fits_links = [*chain.from_iterable(fits_links)]
                 fixed_fits_links.extend(fits_links)
@@ -117,9 +140,15 @@ class GOES16:
 
             down_tasks = self.get_download_tasks(session, fixed_fits_links)
 
-            for i in tqdm(range(0, len(down_tasks), self.batch_size), descripion =  f'Downloading URLs for {self.__class__.__name__}'):
+            for i in tqdm(
+                range(0, len(down_tasks), self.batch_size),
+                descripion=f"Downloading URLs for {self.__class__.__name__}",
+            ):
                 await asyncio.gather(*down_tasks[i : i + self.batch_size])
 
             prep_tasks = self.get_preprocessing_tasks(fixed_fits_links)
-            for i in tqdm(range(0, len(prep_tasks), self.batch_size), descripion =  f'Preprocessing for {self.__class__.__name__}'):
+            for i in tqdm(
+                range(0, len(prep_tasks), self.batch_size),
+                descripion=f"Preprocessing for {self.__class__.__name__}",
+            ):
                 await asyncio.gather(*prep_tasks[i : i + self.batch_size])

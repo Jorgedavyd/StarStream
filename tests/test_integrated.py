@@ -2,6 +2,7 @@ from datetime import timedelta
 from .input_data import scrap_date_list
 from starstream import *
 
+
 def test_fits() -> None:
     DataDownloading(
         [
@@ -20,4 +21,4 @@ def test_cdf() -> None:
 
 
 def test_goes() -> None:
-    DataDownloading(GOES16("he304", granularity = 0.1), scrap_date_list)
+    DataDownloading(GOES16("he304", granularity=0.1), scrap_date_list)

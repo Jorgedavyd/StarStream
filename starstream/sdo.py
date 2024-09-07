@@ -16,6 +16,7 @@ import glob
 import os
 from typing import Callable, List, Tuple, Union
 import os.path as osp
+
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
 """
@@ -47,7 +48,13 @@ class SDO:
             "4500",
         ]
 
-        def __init__(self, step_size: timedelta, wavelength: Union[str, int], download_path: str = './data/SDO_HR/', batch_size: int = 10) -> None:
+        def __init__(
+            self,
+            step_size: timedelta,
+            wavelength: Union[str, int],
+            download_path: str = "./data/SDO_HR/",
+            batch_size: int = 10,
+        ) -> None:
             assert 0 < batch_size <= 10
             assert (
                 str(wavelength) in self.wavelengths
@@ -61,8 +68,12 @@ class SDO:
                 lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}"
             )
             self.root_path: str = osp.join(download_path, str(wavelength))
-            self.scrap_path: Callable[[str], str] = lambda date: osp.join(self.root_path, f"{date}*.jp2")
-            self.jp2_path: Callable[[str], str] = lambda name: osp.join(self.root_path, f"{name}*.jp2")
+            self.scrap_path: Callable[[str], str] = lambda date: osp.join(
+                self.root_path, f"{date}*.jp2"
+            )
+            self.jp2_path: Callable[[str], str] = lambda name: osp.join(
+                self.root_path, f"{name}*.jp2"
+            )
             self.name = (
                 lambda webname: "-".join(
                     [item.replace("_", "") for item in webname.split("__")[:-1]]
@@ -100,17 +111,20 @@ class SDO:
             url = self.url(date, "")
             async with client.get(url) as response:
                 if response.status != 200:
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                 else:
                     data = await response.text()
-                    if '404 not found' in data:
-                        print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    if "404 not found" in data:
+                        print(
+                            f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                        )
                         self.new_scrap_date_list.remove(date)
                         return
                     names = await self.get_names(data)
                     return names
-
 
         def find_all(self, soup):
             return soup.find_all("a", href=lambda href: href.endswith(".jp2"))
@@ -176,7 +190,12 @@ class SDO:
             await self.batched_download(session)
 
     class AIA_LR:
-        def __init__(self, wavelength: str, download_path: str = './data/AIA_LR', batch_size: int = 256) -> None:
+        def __init__(
+            self,
+            wavelength: str,
+            download_path: str = "./data/AIA_LR",
+            batch_size: int = 256,
+        ) -> None:
             self.root_path: str = osp.join(download_path, wavelength)
             self.batch_size: int = batch_size
             self.wavelengths: list = [
@@ -199,15 +218,21 @@ class SDO:
                 lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
             )
 
-            self.scrap_path: Callable[[str], str] = lambda date: osp.join(self.root_path, f"{date}*.jpg")
-            self.jpg_path: Callable[[str], str] = lambda name: osp.join(self.root_path, name)
+            self.scrap_path: Callable[[str], str] = lambda date: osp.join(
+                self.root_path, f"{date}*.jpg"
+            )
+            self.jpg_path: Callable[[str], str] = lambda name: osp.join(
+                self.root_path, name
+            )
             self.name: Callable[[str], str] = (
                 lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
             )
             os.makedirs(self.jpg_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
-            print(f"{self.__class__.__name__}: Looking for the links of missing dates...")
+            print(
+                f"{self.__class__.__name__}: Looking for the links of missing dates..."
+            )
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -230,17 +255,20 @@ class SDO:
             url = self.url(date, "")
             async with client.get(url) as response:
                 if response.status != 200:
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                 else:
                     data = await response.text()
-                    if '404 not found' in data:
-                        print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    if "404 not found" in data:
+                        print(
+                            f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                        )
                         self.new_scrap_date_list.remove(date)
                         return
                     names = await self.get_names(data)
                     return names
-
 
         def find_all(self, soup) -> List:
             return soup.find_all(
@@ -295,7 +323,9 @@ class SDO:
                 )
             ]
 
-        async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime], session):
+        async def downloader_pipeline(
+            self, scrap_date: tuple[datetime, datetime], session
+        ):
             self.check_tasks(scrap_date)
             await self.batched_download(session)
 

@@ -70,7 +70,9 @@ def SWEPAM_version(date, mode="%Y%m%d"):
 ## https://cdaweb.gsfc.nasa.gov/cgi-bin/eval1.cgi
 class ACE:
     class SIS(CDAWeb):
-        def __init__(self, download_path: str = './data/ACE/SIS/', batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/ACE/SIS/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "flux_He",
@@ -88,13 +90,17 @@ class ACE:
                 "flux_Fe",
                 "flux_Ni",
             ]
-            self.variables: List[str] = [f"{name}_{i}" for name in self.phy_obs for i in range(8)]
+            self.variables: List[str] = [
+                f"{name}_{i}" for name in self.phy_obs for i in range(8)
+            ]
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/sis/level_2_cdaweb/sis_h1/{date[:4]}/ac_h1_sis_{date}_{SIS_version(date)}.cdf"
             )
 
     class MAG(CDAWeb):
-        def __init__(self, download_path: str = './data/ACE/MAG/', batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/ACE/MAG/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "Magnitude",
@@ -125,7 +131,9 @@ class ACE:
             )
 
     class SWEPAM(CDAWeb):
-        def __init__(self, download_path: str = './data/ACE/SWEPAM', batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/ACE/SWEPAM", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "Np",
@@ -148,7 +156,9 @@ class ACE:
             )
 
     class SWICS(CDAWeb):
-        def __init__(self, download_path: str = "./data/ACE/SWICS/", batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/ACE/SWICS/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = ["nH", "vH", "vthH"]  # variables#change
             self.variables: List[str] = self.phy_obs
@@ -157,7 +167,9 @@ class ACE:
             )
 
     class EPAM(CDAWeb):
-        def __init__(self, download_path: str = "./data/ACE/EPAM/", batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/ACE/EPAM/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "DE1",

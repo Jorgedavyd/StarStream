@@ -13,7 +13,9 @@ __all__ = ["OMNI"]
 
 
 class OMNI(CDAWeb):
-    def __init__(self, download_path: str = './data/OMNI/HRO2/', batch_size: int = 10) -> None:
+    def __init__(
+        self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10
+    ) -> None:
         super().__init__(download_path, batch_size)
         self.url = (
             lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/omni/hro2_5min/{date[:4]}/omni_hro2_5min_{date}01_v01.cdf"
@@ -58,9 +60,15 @@ class OMNI(CDAWeb):
         self.check_tasks(scrap_date)
 
         downloading_tasks = self.get_download_tasks(session)
-        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
-            await asyncio.gather(*downloading_tasks[i: i+self.batch_size])
+        for i in tqdm(
+            range(0, len(downloading_tasks), self.batch_size),
+            description=f"Downloading for {self.__class__.__name__}",
+        ):
+            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
         prep_tasks = self.get_preprocessing_tasks()
-        for i in tqdm(range(0, len(prep_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
-            await asyncio.gather(*prep_tasks[i: i+self.batch_size])
+        for i in tqdm(
+            range(0, len(prep_tasks), self.batch_size),
+            description=f"Downloading for {self.__class__.__name__}",
+        ):
+            await asyncio.gather(*prep_tasks[i : i + self.batch_size])

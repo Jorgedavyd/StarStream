@@ -9,20 +9,30 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 import os.path as osp
+
 __all__ = ["PROBA_2"]
 
 
 class PROBA_2:
     class LYRA:
-        def __init__(self, download_path: str = './data/LYRA', batch_size: int = 10, sequence_length: timedelta = timedelta(minutes = 10)):
+        def __init__(
+            self,
+            download_path: str = "./data/LYRA",
+            batch_size: int = 10,
+            sequence_length: timedelta = timedelta(minutes=10),
+        ):
             self.lyra_folder_path: str = download_path
             self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"http://proba2.oma.be/lyra/data/bsd/{date[:4]}/{date[4:6]}/{date[6:]}/lyra_{date}-000000_lev3_std.fits"
             )
 
-            self.lyra_fits_path: Callable[[str], str] = lambda date: osp.join(self.lyra_folder_path, f"{date}.fits")
-            self.lyra_csv_path: Callable[[str], str] = lambda date: osp.join(self.lyra_folder_path, f"{date}.fits")
+            self.lyra_fits_path: Callable[[str], str] = lambda date: osp.join(
+                self.lyra_folder_path, f"{date}.fits"
+            )
+            self.lyra_csv_path: Callable[[str], str] = lambda date: osp.join(
+                self.lyra_folder_path, f"{date}.fits"
+            )
             os.makedirs(self.lyra_folder_path, exist_ok=True)
             self.sl: timedelta = sequence_length
 
@@ -72,12 +82,18 @@ class PROBA_2:
                 print(f"{self.__class__.__name__}: Already downloaded!")
             else:
                 downloading_tasks = self.get_download_tasks(session)
-                for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
-                    await asyncio.gather(*downloading_tasks[i: i+self.batch_size])
+                for i in tqdm(
+                    range(0, len(downloading_tasks), self.batch_size),
+                    description=f"Downloading for {self.__class__.__name__}",
+                ):
+                    await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
                 prep_tasks = self.get_preprocessing_tasks()
-                for i in tqdm(range(0, len(prep_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
-                    await asyncio.gather(*prep_tasks[i: i+self.batch_size])
+                for i in tqdm(
+                    range(0, len(prep_tasks), self.batch_size),
+                    description=f"Downloading for {self.__class__.__name__}",
+                ):
+                    await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
 
 def save_npy(file, array) -> None:

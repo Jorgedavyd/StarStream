@@ -10,6 +10,7 @@ import os
 from typing import Callable, Coroutine, List, Tuple
 import os.path as osp
 
+
 class CDAWeb:
     phy_obs: List[str]
     variables: List[str]
@@ -23,7 +24,7 @@ class CDAWeb:
         self.root_path = download_path
         self.csv_path = lambda date: osp.join(self.root_path, f"{date}.csv")
         self.cdf_path = lambda date: osp.join(self.root_path, f"{date}.cdf")
-        os.makedirs(self.root_path, exist_ok = True)
+        os.makedirs(self.root_path, exist_ok=True)
 
     def default_cda_processing(self, cdf_file, date):
         epoch = cdf_file["Epoch"][:].reshape(-1)
@@ -59,12 +60,16 @@ class CDAWeb:
         url = self.url(date)
         async with session.get(url) as response:
             if response.status != 200:
-                print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                print(
+                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                )
                 self.new_scrap_date_list.remove(date)
             else:
                 cdf_data = await response.read()
                 if cdf_data.startswith(b"<html>"):
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                     return
                 async with aiofiles.open(self.cdf_path(date), "wb") as f:
@@ -83,14 +88,19 @@ class CDAWeb:
         self.check_tasks(scrap_date)
         downloading_tasks = self.get_download_tasks(session)
 
-        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Downloading for {self.__class__.__name__}..."):
+        for i in tqdm(
+            range(0, len(downloading_tasks), self.batch_size),
+            description=f"Downloading for {self.__class__.__name__}...",
+        ):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
         prep_tasks: List[Coroutine] = self.get_preprocessing_tasks()
 
-        for i in tqdm(range(0, len(prep_tasks), self.batch_size), description = f"Preprocessing for {self.__class__.__name__}..."):
+        for i in tqdm(
+            range(0, len(prep_tasks), self.batch_size),
+            description=f"Preprocessing for {self.__class__.__name__}...",
+        ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
-
 
     async def get_df_unit(self, date: str) -> pd.DataFrame:
         df = await asyncio.get_event_loop().run_in_executor(

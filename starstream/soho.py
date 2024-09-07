@@ -16,7 +16,9 @@ __all__ = ["SOHO"]
 
 class SOHO:
     class CELIAS_SEM(CDAWeb):
-        def __init__(self, download_path: str = './data/SOHO/CELIAS_SEM' , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/SOHO/CELIAS_SEM", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "CH1",
@@ -31,7 +33,9 @@ class SOHO:
             )
 
     class CELIAS_PM(CDAWeb):
-        def __init__(self, download_path: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "N_p",
@@ -46,7 +50,9 @@ class SOHO:
             )
 
     class ERNE(CDAWeb):
-        def __init__(self, download_path: str = "./data/SOHO/ERNE/", batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/SOHO/ERNE/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "C_intensity",
@@ -67,7 +73,9 @@ class SOHO:
             )
 
     class COSTEP_EPHIN:
-        def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN", batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/SOHO/COSTEP_EPHIN", batch_size: int = 10
+        ) -> None:
             super().__init__()
             self.csv_path: Callable[[str], str] = osp.join(download_path, f"{date}.csv")
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
@@ -102,7 +110,7 @@ class SOHO:
                 await asyncio.gather(*self.download_url(session))
 
         def check_if_downloaded(self, scrap_date: tuple[datetime, datetime]):
-            self.downloaded = len(glob.glob(self.root + '/*')) == 30
+            self.downloaded = len(glob.glob(self.root + "/*")) == 30
             if self.downloaded:
                 pass
             else:
@@ -125,7 +133,7 @@ class SOHO:
         def get_preprocessing_tasks(self):
             return [
                 self.preprocessing(year_path)
-                for year_path in glob.glob(self.root + '/*')
+                for year_path in glob.glob(self.root + "/*")
             ]
 
         async def preprocessing(self, year_path):

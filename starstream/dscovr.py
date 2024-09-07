@@ -29,10 +29,18 @@ class DSCOVR(MHD):
         self.batch_size: int = batch_size
         self.root: str = download_path
 
-        self.fc1_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L1/faraday', f"{date}.csv")
-        self.mg1_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L1/magnetometer', f"{date}.csv")
-        self.f1m_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L2/faraday', f"{date}.csv")
-        self.m1m_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L2/magnetometer', f"{date}.csv")
+        self.fc1_root: Callable[[str], str] = lambda date: osp.join(
+            self.root, "L1/faraday", f"{date}.csv"
+        )
+        self.mg1_root: Callable[[str], str] = lambda date: osp.join(
+            self.root, "L1/magnetometer", f"{date}.csv"
+        )
+        self.f1m_root: Callable[[str], str] = lambda date: osp.join(
+            self.root, "L2/faraday", f"{date}.csv"
+        )
+        self.m1m_root: Callable[[str], str] = lambda date: osp.join(
+            self.root, "L2/magnetometer", f"{date}.csv"
+        )
         self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         self.fc_var: List[str] = [
             "proton_density",
@@ -86,7 +94,7 @@ class DSCOVR(MHD):
         )
         op = Options()
         op.add_argument("headless")
-        driver = webdriver.Chrome(options = op)
+        driver = webdriver.Chrome(options=op)
         driver.get(url(unix))
         # Wait for rendering
         time.sleep(10)
@@ -123,12 +131,16 @@ class DSCOVR(MHD):
     async def download_url(self, url: str, date: str, session) -> None:
         async with session.get(url, ssl=True) as response:
             if response.status != 200:
-                print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                print(
+                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                )
                 self.new_scrap_date_list.remove(date)
             else:
                 data = await response.read()
-                if data.startswith(b'<html>'):
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                if data.startswith(b"<html>"):
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                     return
                 await asyncGZ(BytesIO(data), self.gz_processing, url, date)
@@ -220,6 +232,8 @@ class DSCOVR(MHD):
             print("Already downloaded")
         else:
             downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
-            for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Download for {self.__class__.__name__}..."):
-                await asyncio.gather(*downloading_tasks[i:i+self.batch_size])
-
+            for i in tqdm(
+                range(0, len(downloading_tasks), self.batch_size),
+                description=f"Download for {self.__class__.__name__}...",
+            ):
+                await asyncio.gather(*downloading_tasks[i : i + self.batch_size])

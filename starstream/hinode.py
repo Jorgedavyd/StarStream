@@ -12,17 +12,25 @@ import aiofiles
 from itertools import chain
 import os
 import os.path as osp
+
 __all__ = ["Hinode"]
 
 
 class Hinode:
     class XRT:
-        def __init__(self, download_path: str = "./data/Hinode/XRT" , filetype: str = "png", batch_size: int = 1) -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/Hinode/XRT",
+            filetype: str = "png",
+            batch_size: int = 1,
+        ) -> None:
             self.filetype: str = filetype
             self.batch_size: int = batch_size
             self.root: str = download_path
             self.xrt_folder_path: str = filetype
-            self.path: Callable[[str], str] = lambda name: osp.join(self.xrt_folder_path, f"{name}.{filetype}")
+            self.path: Callable[[str], str] = lambda name: osp.join(
+                self.xrt_folder_path, f"{name}.{filetype}"
+            )
             self.download_urls: List[str] = []
             self.url: Callable[[str, str], str] = (
                 lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
@@ -51,12 +59,16 @@ class Hinode:
             url: str = self.url(date, hour)
             async with session.get(url) as response:
                 if response.status != 200:
-                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    print(
+                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                    )
                     self.new_scrap_date_list.remove(date)
                 else:
                     html = await response.text()
-                    if '404 Not Found' in html:
-                        print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    if "404 Not Found" in html:
+                        print(
+                            f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+                        )
                         self.new_scrap_date_list.remove(date)
                         return
                     soup = BeautifulSoup(html, "html.parser")
@@ -95,7 +107,10 @@ class Hinode:
                 print(f"{self.__class__.__name__} Already downloaded!")
             else:
                 scrap_tasks = self.get_scrap_tasks(session)
-                for i in tqdm(range(0, len(scrap_tasks), self.batch_size), description=f"Scrapping and downloading for {self.__class__.__name__}"):
+                for i in tqdm(
+                    range(0, len(scrap_tasks), self.batch_size),
+                    description=f"Scrapping and downloading for {self.__class__.__name__}",
+                ):
                     await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
 
         def get_hour_images(self, date: str):
