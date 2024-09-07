@@ -30,4 +30,4 @@ def test_cdf() -> None:
 
 
 def test_goes() -> None:
-    DataDownloading([GOES16("he304", "./data")], scrap_date_list)
+    DataDownloading(GOES16("he304", granularity = 0.1), scrap_date_list)

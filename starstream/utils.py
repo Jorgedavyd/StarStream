@@ -208,7 +208,7 @@ async def downloader(scrap_date, sat_objs) -> None:
 
 
 def DataDownloading(
-    sat_objs: Union[List, Any], scrap_date: List[Tuple[datetime, datetime]]
+    sat_objs: Union[List, Any], scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]]
 ) -> None:
     if isinstance(scrap_date[0], datetime):
         asyncio.run(downloader(scrap_date, sat_objs))
