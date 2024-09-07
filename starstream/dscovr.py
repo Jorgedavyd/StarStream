@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from .utils import (
     datetime_interval,
     handle_client_connection_error,
@@ -11,7 +12,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Coroutine, Dict, Sequence, Tuple, Callable, List
+from typing import Coroutine, Dict, Sequence, Tuple, Callable, List, Union
 import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -23,21 +24,15 @@ __all__ = ["DSCOVR"]
 
 
 class DSCOVR(MHD):
-    def __init__(self, path: str = "./data") -> None:
+    def __init__(self, download_path: str = "./data", batch_size: int = 15) -> None:
         super().__init__()
+        self.batch_size: int = batch_size
+        self.root: str = download_path
 
-        self.fc1_root: Callable[[str], str] = lambda date: os.path.join(
-            path, f"DSCOVR/L1/faraday/{date}.csv"
-        )
-        self.mg1_root: Callable[[str], str] = lambda date: os.path.join(
-            path, f"DSCOVR/L1/magnetometer/{date}.csv"
-        )
-        self.f1m_root: Callable[[str], str] = lambda date: os.path.join(
-            path, f"DSCOVR/L2/faraday/{date}.csv"
-        )
-        self.m1m_root: Callable[[str], str] = lambda date: os.path.join(
-            path, f"DSCOVR/L2/magnetometer/{date}.csv"
-        )
+        self.fc1_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L1/faraday', f"{date}.csv")
+        self.mg1_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L1/magnetometer', f"{date}.csv")
+        self.f1m_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L2/faraday', f"{date}.csv")
+        self.m1m_root: Callable[[str], str] = lambda date: osp.join(self.root, 'L2/magnetometer', f"{date}.csv")
         self.mg_var: List[str] = ["bx_gsm", "by_gsm", "bz_gsm", "bt"]
         self.fc_var: List[str] = [
             "proton_density",
@@ -50,18 +45,16 @@ class DSCOVR(MHD):
             self.f1m_root,
             self.m1m_root,
         ]
-        self.var_meta: Dict[str, List[Callable[[str], str]]] = {
+        self.var_meta: Dict[str, Union[List[Callable[[str], str]], List[str]]] = {
             "fc1": [self.fc1_root, self.fc_var],
             "mg1": [self.mg1_root, self.mg_var],
             "f1m": [self.f1m_root, self.fc_var],
             "m1m": [self.m1m_root, self.mg_var],
         }
-        os.makedirs("./data/DSCOVR/L1/faraday/", exist_ok=True)
-        os.makedirs("./data/DSCOVR/L1/magnetometer/", exist_ok=True)
-        os.makedirs("./data/DSCOVR/L2/faraday/", exist_ok=True)
-        os.makedirs("./data/DSCOVR/L2/magnetometer/", exist_ok=True)
+        for func in self.roots:
+            os.makedirs(func("")[:-4], exist_ok=True)
 
-    def to_unix(self, scrap_date: Sequence[datetime]) -> List[int]:
+    def to_unix(self, scrap_date: Tuple[datetime, datetime]) -> List[int]:
         timestamp = [
             int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
             for date in scrap_date
@@ -69,6 +62,7 @@ class DSCOVR(MHD):
         return timestamp
 
     def check_update(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        print(f"{self.__class__.__name__}: Looking for the missing dates...")
         update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
         try:
             with open(update_path, "r") as file:
@@ -122,14 +116,22 @@ class DSCOVR(MHD):
         df = dataset.to_dataframe()
         dataset.close()
         faraday_cup = df[self.var_meta[tool][1]]
-        faraday_cup = faraday_cup.resample("1T").mean()
+        faraday_cup = faraday_cup.resample("1t").mean()
         faraday_cup.to_csv(self.var_meta[tool][0](date))
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def download_url(self, url: str, date: str, session) -> None:
         async with session.get(url, ssl=True) as response:
-            data = await response.read()
-            await asyncGZ(BytesIO(data), self.gz_processing, url, date)
+            if response.status != 200:
+                print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                self.new_scrap_date_list.remove(date)
+            else:
+                data = await response.read()
+                if data.startswith(b'<html>'):
+                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    self.new_scrap_date_list.remove(date)
+                    return
+                await asyncGZ(BytesIO(data), self.gz_processing, url, date)
 
     def get_urls(self) -> List[str]:
         with open(osp.join(osp.dirname(__file__), "trivials/url.txt"), "r") as file:
@@ -142,7 +144,9 @@ class DSCOVR(MHD):
         return url_list
 
     def get_download_tasks(self, session) -> List[Coroutine]:
+        print(f"{self.__class__.__name__}: Gettting the URLs...")
         self.urls_dates = self.get_urls()
+        print(f"{self.__class__.__name__}: Downloading...")
         return [self.download_url(url, date, session) for url, date in self.urls_dates]
 
     """Prep pipeline"""
@@ -210,12 +214,12 @@ class DSCOVR(MHD):
 
     """Downloader pipeline"""
 
-    async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime], session):
+    async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
         self.check_tasks(scrap_date)
         if self.new_scrap_date_list == []:
             print("Already downloaded")
         else:
-            print(
-                f'Got all urls for: {scrap_date[0].strftime("%Y%m%d")} to {scrap_date[-1].strftime("%Y%m%d")}'
-            )
-            await asyncio.gather(*self.get_download_tasks(session))
+            downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
+            for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Download for {self.__class__.__name__}..."):
+                await asyncio.gather(*downloading_tasks[i:i+self.batch_size])
+

@@ -183,13 +183,13 @@ def timedelta_to_freq(timedelta_obj) -> str:
     freq_str = ""
 
     if days > 0:
-        freq_str += str(int(days)) + "D"
+        freq_str += str(int(days)) + "d"
     if hours > 0:
-        freq_str += str(int(hours)) + "H"
+        freq_str += str(int(hours)) + "h"
     if minutes > 0:
-        freq_str += str(int(minutes)) + "T"
+        freq_str += str(int(minutes)) + "t"
     if seconds > 0:
-        freq_str += str(int(seconds)) + "S"
+        freq_str += str(int(seconds)) + "s"
 
     return freq_str
 

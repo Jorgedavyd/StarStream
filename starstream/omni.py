@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Coroutine, List, Tuple
-from .utils import asyncCDF, datetime_interval, handle_client_connection_error
+
+from tqdm import tqdm
+from .utils import asyncCDF, datetime_interval
 from ._base import CDAWeb
 import aiofiles
 import asyncio
@@ -11,8 +13,8 @@ __all__ = ["OMNI"]
 
 
 class OMNI(CDAWeb):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, download_path: str = './data/OMNI/HRO2/', batch_size: int = 10) -> None:
+        super().__init__(download_path, batch_size)
         self.url = (
             lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/omni/hro2_5min/{date[:4]}/omni_hro2_5min_{date}01_v01.cdf"
         )
@@ -32,24 +34,15 @@ class OMNI(CDAWeb):
             "Vz",
         ]
         self.variables = self.phy_obs
-        self.csv_path = lambda date: f"./data/OMNI/HRO2/{date}.csv"
-        self.cdf_path = lambda date: f"./data/OMNI/HRO2/{date}.cdf"
-        os.makedirs("./data/OMNI/HRO2/", exist_ok=True)
 
     def check_tasks(self, scrap_date: Tuple[datetime, datetime]):
+        print(f"{self.__class__.__name__}: Looking for missing dates...")
         new_scrap_date: List[str] = datetime_interval(
             *scrap_date, relativedelta(months=1), "%Y%m"
         )
         self.new_scrap_date_list: List[str] = [
             date for date in new_scrap_date if not os.path.exists(self.csv_path(date))
         ]
-
-    @handle_client_connection_error(max_retries=3, default_cooldown=5, increment="exp")
-    async def download_url(self, session, date: str):
-        async with session.get(self.url(date), ssl=False) as response:
-            cdf_data = await response.read()
-            async with aiofiles.open(self.cdf_path(date), mode="wb") as f:
-                await f.write(cdf_data)
 
     def get_download_tasks(self, session) -> List[Coroutine]:
         return [self.download_url(session, date) for date in self.new_scrap_date_list]
@@ -63,5 +56,11 @@ class OMNI(CDAWeb):
 
     async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
         self.check_tasks(scrap_date)
-        await asyncio.gather(*self.get_download_tasks(session))
-        await asyncio.gather(*self.get_preprocessing_tasks())
+
+        downloading_tasks = self.get_download_tasks(session)
+        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
+            await asyncio.gather(*downloading_tasks[i: i+self.batch_size])
+
+        prep_tasks = self.get_preprocessing_tasks()
+        for i in tqdm(range(0, len(prep_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
+            await asyncio.gather(*prep_tasks[i: i+self.batch_size])

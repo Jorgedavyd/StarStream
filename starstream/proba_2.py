@@ -1,4 +1,5 @@
 from typing import Callable, Coroutine, List, Tuple
+from tqdm import tqdm
 from .utils import datetime_interval, handle_client_connection_error
 from astropy.io import fits
 from io import BytesIO
@@ -7,25 +8,23 @@ import aiofiles
 import os
 import asyncio
 from datetime import datetime, timedelta
-
+import os.path as osp
 __all__ = ["PROBA_2"]
 
 
 class PROBA_2:
     class LYRA:
-        def __init__(self, sequence_length: timedelta):
+        def __init__(self, download_path: str = './data/LYRA', batch_size: int = 10, sequence_length: timedelta = timedelta(minutes = 10)):
+            self.lyra_folder_path: str = download_path
+            self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"http://proba2.oma.be/lyra/data/bsd/{date[:4]}/{date[4:6]}/{date[6:]}/lyra_{date}-000000_lev3_std.fits"
             )
-            self.lyra_folder_path: str = "./data/LYRA/"
-            self.lyra_fits_path: Callable[[str], str] = (
-                lambda date: f"./data/LYRA/{date}.fits"
-            )
-            self.lyra_csv_path: Callable[[str], str] = (
-                lambda date: f"./data/LYRA/{date}.csv"
-            )
-            self.sl: timedelta = sequence_length
+
+            self.lyra_fits_path: Callable[[str], str] = lambda date: osp.join(self.lyra_folder_path, f"{date}.fits")
+            self.lyra_csv_path: Callable[[str], str] = lambda date: osp.join(self.lyra_folder_path, f"{date}.fits")
             os.makedirs(self.lyra_folder_path, exist_ok=True)
+            self.sl: timedelta = sequence_length
 
         def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
             new_scrap_date: List[str] = datetime_interval(
@@ -70,10 +69,15 @@ class PROBA_2:
         ) -> None:
             self.get_check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
-                print("Already downloaded!")
+                print(f"{self.__class__.__name__}: Already downloaded!")
             else:
-                await asyncio.gather(*self.get_download_tasks(session))
-                await asyncio.gather(*self.get_preprocessing_tasks())
+                downloading_tasks = self.get_download_tasks(session)
+                for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
+                    await asyncio.gather(*downloading_tasks[i: i+self.batch_size])
+
+                prep_tasks = self.get_preprocessing_tasks()
+                for i in tqdm(range(0, len(prep_tasks), self.batch_size), description = f'Downloading for {self.__class__.__name__}'):
+                    await asyncio.gather(*prep_tasks[i: i+self.batch_size])
 
 
 def save_npy(file, array) -> None:

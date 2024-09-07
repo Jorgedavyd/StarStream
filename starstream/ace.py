@@ -70,12 +70,9 @@ def SWEPAM_version(date, mode="%Y%m%d"):
 ## https://cdaweb.gsfc.nasa.gov/cgi-bin/eval1.cgi
 class ACE:
     class SIS(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path = lambda date: f"./data/ACE/SIS/{date}.csv"
-            self.cdf_path = lambda date: f"./data/ACE/SIS/{date}.cdf"
-            self.root_path = "./data/ACE/SIS/"
-            self.phy_obs = [
+        def __init__(self, download_path: str = './data/ACE/SIS/', batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
+            self.phy_obs: List[str] = [
                 "flux_He",
                 "flux_C",
                 "flux_N",
@@ -91,21 +88,14 @@ class ACE:
                 "flux_Fe",
                 "flux_Ni",
             ]
-            self.variables = [f"{name}_{i}" for name in self.phy_obs for i in range(8)]
-            self.url = (
+            self.variables: List[str] = [f"{name}_{i}" for name in self.phy_obs for i in range(8)]
+            self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/ace/sis/level_2_cdaweb/sis_h1/{date[:4]}/ac_h1_sis_{date}_{SIS_version(date)}.cdf"
             )
 
     class MAG(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/MAG/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/MAG/{date}.cdf"
-            )
-            self.root_path: str = "./data/ACE/MAG/"
+        def __init__(self, download_path: str = './data/ACE/MAG/', batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "Magnitude",
                 "BGSM",
@@ -135,15 +125,8 @@ class ACE:
             )
 
     class SWEPAM(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/SWEPAM/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/SWEPAM/{date}.cdf"
-            )
-            self.root_path: str = "./data/ACE/SWEPAM/"
+        def __init__(self, download_path: str = './data/ACE/SWEPAM', batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "Np",
                 "Vp",
@@ -165,15 +148,8 @@ class ACE:
             )
 
     class SWICS(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/SWICS/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/SWICS/{date}.cdf"
-            )
-            self.root_path: str = "./data/ACE/SWICS/"
+        def __init__(self, download_path: str = "./data/ACE/SWICS/", batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = ["nH", "vH", "vthH"]  # variables#change
             self.variables: List[str] = self.phy_obs
             self.url: Callable[[str], str] = (
@@ -181,15 +157,8 @@ class ACE:
             )
 
     class EPAM(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/EPAM/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/ACE/EPAM/{date}.cdf"
-            )
-            self.root_path: str = "./data/ACE/EPAM/"
+        def __init__(self, download_path: str = "./data/ACE/EPAM/", batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "DE1",
                 "DE4",

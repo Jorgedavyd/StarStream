@@ -9,21 +9,15 @@ import aiofiles
 import asyncio
 import glob
 import os
+import os.path as osp
 
 __all__ = ["SOHO"]
 
 
 class SOHO:
     class CELIAS_SEM(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/CELIAS_SEM/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/CELIAS_SEM/{date}.cdf"
-            )
-            self.root_path: str = self.cdf_path("")[:-4]
+        def __init__(self, download_path: str = './data/SOHO/CELIAS_SEM' , batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "CH1",
                 "CH2",
@@ -37,15 +31,8 @@ class SOHO:
             )
 
     class CELIAS_PM(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/CELIAS_PM/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/CELIAS_PM/{date}.cdf"
-            )
-            self.root_path: str = self.cdf_path("")[:-4]
+        def __init__(self, download_path: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "N_p",
                 "V_p",
@@ -59,15 +46,8 @@ class SOHO:
             )
 
     class ERNE(CDAWeb):
-        def __init__(self) -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/ERNE/{date}.csv"
-            )
-            self.cdf_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/ERNE/{date}.cdf"
-            )
-            self.root_path: str = self.cdf_path("")[:-4]
+        def __init__(self, download_path: str = "./data/SOHO/ERNE/", batch_size: int = 10) -> None:
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "C_intensity",
                 "N_intensity",
@@ -80,22 +60,18 @@ class SOHO:
                 "FeCoNi_intensity",
             ]
             self.variables: List[str] = [
-                f"{isotop}_{i}" for isotop in phy_obs for i in range(10)
+                f"{isotop}_{i}" for isotop in self.phy_obs for i in range(10)
             ]
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
 
     class COSTEP_EPHIN:
-        def __init__(self) -> None:
+        def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN", batch_size: int = 10) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.csv"
-            )
+            self.csv_path: Callable[[str], str] = osp.join(download_path, f"{date}.csv")
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
-            self.l3i_path: Callable[[str], str] = (
-                lambda date: f"./data/SOHO/COSTEP_EPHIN/{date}.l3i"
-            )
+            self.l3i_path: Callable[[str], str] = osp.join(download_path, f"{date}.l3i")
             self.url: str = (
                 "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
             )
@@ -126,7 +102,7 @@ class SOHO:
                 await asyncio.gather(*self.download_url(session))
 
         def check_if_downloaded(self, scrap_date: tuple[datetime, datetime]):
-            self.downloaded = len(glob.glob("./data/SOHO/COSTEP_EPHIN/*.csv")) == 30
+            self.downloaded = len(glob.glob(self.root + '/*')) == 30
             if self.downloaded:
                 pass
             else:
@@ -137,7 +113,7 @@ class SOHO:
         )
         async def download_url(self, session):
             os.makedirs(self.root)
-            async with session.get(self.url, ssl=True) as response:
+            async with session.get(self.url) as response:
                 if response.status == 200:
                     data = await response.read()
                     await asyncTAR(BytesIO(data), self.get_processing, self.root)
@@ -149,7 +125,7 @@ class SOHO:
         def get_preprocessing_tasks(self):
             return [
                 self.preprocessing(year_path)
-                for year_path in glob.glob("./data/SOHO/COSTEP_EPHIN/*.l3i")
+                for year_path in glob.glob(self.root + '/*')
             ]
 
         async def preprocessing(self, year_path):
@@ -171,7 +147,7 @@ class SOHO:
             )
             df = df.drop(["year", "month", "day", "hour", "minute"], axis=1)
             df.set_index("datetime", inplace=True, drop=True)
-            df.resample("1T").mean().to_csv(year_path[:-3] + "csv")
+            df.resample("1min").mean().to_csv(year_path[:-3] + "csv")
 
         def sync_read_csv(
             self, path: str, parse_dates: list[str], index_col: str, date_format: str

@@ -11,12 +11,11 @@ from io import BytesIO
 from tqdm import tqdm
 import pandas as pd
 import aiofiles
-import aiohttp
 import asyncio
 import glob
 import os
 from typing import Callable, List, Tuple, Union
-
+import os.path as osp
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
 """
@@ -48,7 +47,8 @@ class SDO:
             "4500",
         ]
 
-        def __init__(self, step_size: timedelta, wavelength: Union[str, int]) -> None:
+        def __init__(self, step_size: timedelta, wavelength: Union[str, int], download_path: str = './data/SDO_HR/', batch_size: int = 10) -> None:
+            assert 0 < batch_size <= 10
             assert (
                 str(wavelength) in self.wavelengths
             ), f"Not valid wavelength: {self.wavelengths}"
@@ -60,8 +60,9 @@ class SDO:
             self.url = (
                 lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}"
             )
-            self.scrap_path = lambda date: f"./data/SDO/AIA_HR/{wavelength}/{date}*.jp2"
-            self.jp2_path = lambda name: f"./data/SDO/AIA_HR/{wavelength}/{name}"
+            self.root_path: str = osp.join(download_path, str(wavelength))
+            self.scrap_path: Callable[[str], str] = lambda date: osp.join(self.root_path, f"{date}*.jp2")
+            self.jp2_path: Callable[[str], str] = lambda name: osp.join(self.root_path, f"{name}*.jp2")
             self.name = (
                 lambda webname: "-".join(
                     [item.replace("_", "") for item in webname.split("__")[:-1]]
@@ -71,6 +72,7 @@ class SDO:
             os.makedirs(self.jp2_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+            print(f"{self.__class__.__name__}: Looking for missing dates...")
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -94,12 +96,21 @@ class SDO:
         @handle_client_connection_error(
             increment="exp", default_cooldown=5, max_retries=3
         )
-        async def scrap_names(self, date):
+        async def scrap_names(self, date, client):
             url = self.url(date, "")
-            async with aiohttp.ClientSession() as client:
-                async with client.get(url, ssl=False) as response:
-                    names = await self.get_names(await response.text())
+            async with client.get(url) as response:
+                if response.status != 200:
+                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    self.new_scrap_date_list.remove(date)
+                else:
+                    data = await response.text()
+                    if '404 not found' in data:
+                        print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                        self.new_scrap_date_list.remove(date)
+                        return
+                    names = await self.get_names(data)
                     return names
+
 
         def find_all(self, soup):
             return soup.find_all("a", href=lambda href: href.endswith(".jp2"))
@@ -107,16 +118,15 @@ class SDO:
         @handle_client_connection_error(
             increment="exp", default_cooldown=5, max_retries=3
         )
-        async def download_from_name(self, name):
+        async def download_from_name(self, name, client):
             date = name.split("_")[0]
             url = self.url(date, name)
-            async with aiohttp.ClientSession() as client:
-                async with client.get(url, ssl=False) as response, aiofiles.open(
-                    self.jp2_path(self.name(name)), "wb"
-                ) as f:
-                    await f.write(await response.read())
+            async with client.get(url, ssl=False) as response, aiofiles.open(
+                self.jp2_path(self.name(name)), "wb"
+            ) as f:
+                await f.write(await response.read())
 
-        async def batched_download(self):
+        async def batched_download(self, session):
             params = []
             for i in tqdm(
                 range(0, len(self.new_scrap_date_list), self.batch_size),
@@ -127,7 +137,7 @@ class SDO:
                         *chain.from_iterable(
                             await asyncio.gather(
                                 *[
-                                    self.scrap_names(date)
+                                    self.scrap_names(date, session)
                                     for date in self.new_scrap_date_list[
                                         i : i + self.batch_size
                                     ]
@@ -137,12 +147,14 @@ class SDO:
                     ]
                 )
 
+            params = [i for i in params if i is not None]
+
             for i in tqdm(
                 range(0, len(params), self.batch_size), desc="Getting images..."
             ):
                 await asyncio.gather(
                     *[
-                        self.download_from_name(name)
+                        self.download_from_name(name, session)
                         for name in params[i : i + self.batch_size]
                     ]
                 )
@@ -158,15 +170,15 @@ class SDO:
             ]
 
         async def downloader_pipeline(
-            self, scrap_date: tuple[datetime, datetime], session
+            self, scrap_date: Tuple[datetime, datetime], session
         ):
             self.check_tasks(scrap_date)
-            await self.batched_download()
+            await self.batched_download(session)
 
     class AIA_LR:
-        batch_size = 256
-
-        def __init__(self, wavelength: str) -> None:
+        def __init__(self, wavelength: str, download_path: str = './data/AIA_LR', batch_size: int = 256) -> None:
+            self.root_path: str = osp.join(download_path, wavelength)
+            self.batch_size: int = batch_size
             self.wavelengths: list = [
                 "0094",
                 "0131",
@@ -186,18 +198,16 @@ class SDO:
             self.url: Callable[[str, str], str] = (
                 lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
             )
-            self.scrap_path: Callable[[str], str] = (
-                lambda date: f"./data/SDO/AIA_LR/{wavelength}/{date}*.jpg"
-            )
-            self.jpg_path: Callable[[str], str] = (
-                lambda name: f"./data/SDO/AIA_LR/{wavelength}/{name}"
-            )
+
+            self.scrap_path: Callable[[str], str] = lambda date: osp.join(self.root_path, f"{date}*.jpg")
+            self.jpg_path: Callable[[str], str] = lambda name: osp.join(self.root_path, name)
             self.name: Callable[[str], str] = (
                 lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
             )
             os.makedirs(self.jpg_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+            print(f"{self.__class__.__name__}: Looking for the links of missing dates...")
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -213,28 +223,39 @@ class SDO:
             scrap = await loop.run_in_executor(None, self.find_all, soup)
             return [name["href"] for name in scrap]
 
-        async def scrap_names(self, date: str) -> List[str]:
+        @handle_client_connection_error(
+            increment="exp", default_cooldown=5, max_retries=3
+        )
+        async def scrap_names(self, date: str, client):
             url = self.url(date, "")
-            async with aiohttp.ClientSession() as client:
-                async with client.get(url, ssl=False) as response:
-                    names = await self.get_names(await response.text())
+            async with client.get(url) as response:
+                if response.status != 200:
+                    print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                    self.new_scrap_date_list.remove(date)
+                else:
+                    data = await response.text()
+                    if '404 not found' in data:
+                        print(f'{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}')
+                        self.new_scrap_date_list.remove(date)
+                        return
+                    names = await self.get_names(data)
                     return names
+
 
         def find_all(self, soup) -> List:
             return soup.find_all(
                 "a", href=lambda href: href.endswith(f"512_{self.wavelength}.jpg")
             )
 
-        async def download_from_name(self, name: str) -> None:
+        async def download_from_name(self, name: str, client) -> None:
             date = name.split("_")[0]
             url = self.url(date, name)
-            async with aiohttp.ClientSession() as client:
-                async with client.get(url, ssl=False) as response, aiofiles.open(
-                    self.jpg_path(self.name(name)), "wb"
-                ) as f:
-                    await f.write(await response.read())
+            async with client.get(url) as response, aiofiles.open(
+                self.jpg_path(self.name(name)), "wb"
+            ) as f:
+                await f.write(await response.read())
 
-        async def batched_download(self) -> None:
+        async def batched_download(self, client) -> None:
             params = []
             for i in tqdm(
                 range(0, len(self.new_scrap_date_list), self.batch_size),
@@ -245,7 +266,7 @@ class SDO:
                         *chain.from_iterable(
                             await asyncio.gather(
                                 *[
-                                    self.scrap_names(date)
+                                    self.scrap_names(date, client)
                                     for date in self.new_scrap_date_list[
                                         i : i + self.batch_size
                                     ]
@@ -255,27 +276,28 @@ class SDO:
                     ]
                 )
 
+            params = [i for i in params if i is not None]
             for i in tqdm(
                 range(0, len(params), self.batch_size), desc="Getting images..."
             ):
                 await asyncio.gather(
                     *[
-                        self.download_from_name(name)
+                        self.download_from_name(name, client)
                         for name in params[i : i + self.batch_size]
                     ]
                 )
 
         def data_prep(self, scrap_date: Tuple[datetime, datetime]) -> List[str]:
-            scrap_date = datetime_interval(*scrap_date, timedelta(days=1))
+            new_scrap_date = datetime_interval(*scrap_date, timedelta(days=1))
             return [
                 *chain.from_iterable(
-                    [glob.glob(self.scrap_path(date)) for date in scrap_date]
+                    [glob.glob(self.scrap_path(date)) for date in new_scrap_date]
                 )
             ]
 
-        async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime], _):
+        async def downloader_pipeline(self, scrap_date: tuple[datetime, datetime], session):
             self.check_tasks(scrap_date)
-            await self.batched_download()
+            await self.batched_download(session)
 
     class EVE:
         def __init__(self) -> None:
@@ -308,7 +330,7 @@ class SDO:
                 1,
             )
             df[["CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"]].resample(
-                "1T"
+                "1min"
             ).mean().to_csv(self.eve_csv_path(day))
 
         def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:

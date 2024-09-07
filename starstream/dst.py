@@ -6,17 +6,17 @@ import aiofiles
 import asyncio
 import asyncio
 import os
-from typing import Callable, List, Tuple
+import os.path as osp
+from typing import Callable, Coroutine, List, Tuple
+from tqdm import tqdm
 
 __all__ = ["Dst"]
 
-
 class Dst:
-    def __init__(self) -> None:
-        self.root: str = "./data/Dst_index"
-        self.csv_path: Callable[[str], str] = (
-            lambda month: f"./data/Dst_index/{month}.csv"
-        )
+    def __init__(self, download_path: str = './data/Dst', batch_size: int = 10) -> None:
+        self.batch_size: int = batch_size
+        self.root: str = download_path
+        self.csv_path: Callable[[str], str] = lambda month: osp.join(self.root, f"{month}.csv")
         os.makedirs(self.root, exist_ok=True)
 
     def date_to_url(self, month: str) -> str:
@@ -36,6 +36,7 @@ class Dst:
     """
 
     def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]):
+        print(f"{self.__class__.__name__}: Looking for missing data...")
         new_scrap_date: List[str] = datetime_interval(
             *scrap_date, relativedelta(months=1), "%Y%m"
         )
@@ -49,6 +50,7 @@ class Dst:
         ]
 
     def get_download_tasks(self, session):
+        print(f"{self.__class__.__name__}: Downloading missing data...")
         return [self.download_url(month, session) for month in self.new_scrap_date_list]
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
@@ -85,7 +87,12 @@ class Dst:
 
     async def downloader_pipeline(self, scrap_date, session):
         self.get_check_tasks(scrap_date)
-        await asyncio.gather(*self.get_download_tasks(session))
+
+        downloading_tasks: List[Coroutine] = self.get_download_tasks(session))
+
+        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Downloading for {self.__class__.__name__}..."):
+            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
+
 
     """Prep pipeline"""
 

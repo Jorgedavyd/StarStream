@@ -1,16 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+from .input_data import scrap_date_list
 from starstream import *
-
-# Defining default values for tests
-scrap_date_list = [
-    (datetime(2017, 10, 3), datetime(2017, 10, 15)),
-    (datetime(2018, 10, 3), datetime(2018, 3, 15)),
-]
-
-
-def test_ncei() -> None:
-    DataDownloading(DSCOVR(), scrap_date_list)
-
 
 def test_fits() -> None:
     DataDownloading(
