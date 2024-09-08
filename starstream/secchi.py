@@ -89,8 +89,8 @@ class STEREO_A:
                         None, img.save, self.euvi_png_path(name), "PNG"
                     )
 
-            def get_scrap_names_tasks(self, scrap_date, session) -> List[Coroutine]:
-                return [self.scrap_date_names(session, date, wavelength) for date in scrap_date for wavelength in self.wavelength]
+            def get_scrap_names_tasks(self, session) -> List[Coroutine]:
+                return [self.scrap_date_names(session, date, wavelength) for date in self.new_scrap_date_list for wavelength in self.wavelength]
 
             def check_tasks(self, scrap_date) -> None:
                 self.new_scrap_date_list = [
@@ -125,7 +125,7 @@ class STEREO_A:
                     print(f'{self.__class__.__name__}: Already downloaded')
                 else:
                     name_list: List = []
-                    scrap_tasks: List[Coroutine] = self.get_scrap_names_tasks(scrap_date, session)
+                    scrap_tasks: List[Coroutine] = self.get_scrap_names_tasks(session)
 
                     for i in tqdm(range(0, len(scrap_tasks), self.batch_size), desc = f"Preprocessing for {self.__class__.__name__}..."):
                         name_batch: List[Union[List[str], None]] = await asyncio.gather(*scrap_tasks[i : i + self.batch_size])

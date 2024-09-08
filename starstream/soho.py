@@ -142,7 +142,7 @@ class SOHO:
         def get_preprocessing_tasks(self):
             return [
                 self.preprocessing(year_path)
-                for year_path in glob.glob(self.root + "/*")
+                for year_path in glob.glob(self.root + "/5min/*")
             ]
 
         async def preprocessing(self, year_path):
