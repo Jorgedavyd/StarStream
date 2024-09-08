@@ -12,11 +12,14 @@ from tqdm import tqdm
 
 __all__ = ["Dst"]
 
+
 class Dst:
-    def __init__(self, download_path: str = './data/Dst', batch_size: int = 10) -> None:
+    def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
         self.batch_size: int = batch_size
         self.root: str = download_path
-        self.csv_path: Callable[[str], str] = lambda month: osp.join(self.root, f"{month}.csv")
+        self.csv_path: Callable[[str], str] = lambda month: osp.join(
+            self.root, f"{month}.csv"
+        )
         os.makedirs(self.root, exist_ok=True)
 
     def date_to_url(self, month: str) -> str:
@@ -90,9 +93,11 @@ class Dst:
 
         downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
 
-        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc = f"Downloading for {self.__class__.__name__}..."):
+        for i in tqdm(
+            range(0, len(downloading_tasks), self.batch_size),
+            desc=f"Downloading for {self.__class__.__name__}...",
+        ):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-
 
     """Prep pipeline"""
 

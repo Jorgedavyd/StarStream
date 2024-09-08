@@ -13,6 +13,7 @@ import os.path as osp
 
 __all__ = ["SOHO"]
 
+
 class SOHO:
     class CELIAS_SEM(CDAWeb):
         def __init__(
@@ -54,10 +55,10 @@ class SOHO:
         ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
-                'PH',
-                'PHC',
-                'P_energy',
-            ] ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/soho_erne-hed_l2-1min_00000000_v01.skt
+                "PH",
+                "PHC",
+                "P_energy",
+            ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/soho_erne-hed_l2-1min_00000000_v01.skt
             energy_channels: List[str] = [
                 "13  - 16  MeV",
                 "16  - 20  MeV",
@@ -70,26 +71,26 @@ class SOHO:
                 "80  - 100 MeV",
                 "100 - 130 MeV",
             ]
-            self.variables: List[str] = [
-                f'PH_{energy}' for energy in energy_channels
-            ] + [
-                f'PHC_{energy}' for energy in energy_channels
-                ] + [
-                f'P_energy_{energy}' for energy in energy_channels
-                ]
+            self.variables: List[str] = (
+                [f"PH_{energy}" for energy in energy_channels]
+                + [f"PHC_{energy}" for energy in energy_channels]
+                + [f"P_energy_{energy}" for energy in energy_channels]
+            )
 
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
 
     class COSTEP_EPHIN:
-        def __init__(
-            self, download_path: str = "./data/SOHO/COSTEP_EPHIN"
-        ) -> None:
+        def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN") -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: osp.join(download_path, f"{date}.csv")
+            self.csv_path: Callable[[str], str] = lambda date: osp.join(
+                download_path, f"{date}.csv"
+            )
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
-            self.l3i_path: Callable[[str], str] = lambda date: osp.join(download_path, f"{date}.l3i")
+            self.l3i_path: Callable[[str], str] = lambda date: osp.join(
+                download_path, f"{date}.l3i"
+            )
             self.url: str = (
                 "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
             )

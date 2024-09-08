@@ -7,6 +7,7 @@ import joblib
 
 __all__ = ["SWARM"]
 
+
 def separate_intervals(date_list):
     intervals = []
     start_date = None

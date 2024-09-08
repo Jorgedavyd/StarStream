@@ -105,7 +105,9 @@ class Hinode:
                     async with aiofiles.open(self.path(url[-22:-9]), "wb") as file:
                         await file.write(data)
 
-        async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session) -> None:
+        async def downloader_pipeline(
+            self, scrap_date: Tuple[datetime, datetime], session
+        ) -> None:
             self.check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
                 print(f"{self.__class__.__name__} Already downloaded!")

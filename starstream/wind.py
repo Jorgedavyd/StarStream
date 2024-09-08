@@ -3,6 +3,7 @@ from typing import Callable, List, Tuple
 from ._base import CDAWeb
 from datetime import datetime
 
+
 def WIND_MAG_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)
     v4 = datetime.strptime("20230101", "%Y%m%d")
@@ -29,7 +30,9 @@ def TDP_PM_version(date, mode="%Y%m%d"):
 
 class WIND:
     class MAG(CDAWeb):
-        def __init__(self, download_path: str = './data/WIND/MAG', batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/MAG", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = ["BF1", "BGSE", "BGSM"]
             self.variables: List[str] = ["BF1"] + [
@@ -40,7 +43,11 @@ class WIND:
             )
 
     class SWE_alpha_proton(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/SWE/alpha_proton" , batch_size: int = 10) -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/WIND/SWE/alpha_proton",
+            batch_size: int = 10,
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "Proton_V_nonlin",
@@ -77,7 +84,11 @@ class WIND:
             )
 
     class SWE_electron_angle(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/SWE/electron_angle/" , batch_size: int = 10) -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/WIND/SWE/electron_angle/",
+            batch_size: int = 10,
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "f_pitch_SPA",
@@ -91,7 +102,11 @@ class WIND:
             )
 
     class SWE_electron_moments(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/SWE/electron_moments/" , batch_size: int = 10) -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/WIND/SWE/electron_moments/",
+            batch_size: int = 10,
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "N_elec",
@@ -112,7 +127,9 @@ class WIND:
             )
 
     class TDP_PM(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/PM/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/PM/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "P_VELS",
@@ -139,7 +156,9 @@ class WIND:
             )
 
     class TDP_PLSP(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/PLSP/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/PLSP/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX",
@@ -173,7 +192,9 @@ class WIND:
             )
 
     class TDP_SOSP(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/SOSP/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/SOSP/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX",
@@ -187,7 +208,9 @@ class WIND:
             )
 
     class TDP_SOPD(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/SOPD/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/SOPD/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX"  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
@@ -214,7 +237,9 @@ class WIND:
             )
 
     class TDP_ELSP(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/ELSP/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/ELSP/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX",
@@ -247,7 +272,9 @@ class WIND:
             )
 
     class TDP_ELPD(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/ELPD/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/ELPD/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX"
@@ -281,7 +308,9 @@ class WIND:
             )
 
     class TDP_EHSP(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/EHSP/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/EHSP/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX",
@@ -315,7 +344,9 @@ class WIND:
             )
 
     class TDP_EHPD(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/EHPD/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/EHPD/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX"
@@ -349,7 +380,9 @@ class WIND:
             )
 
     class TDP_SFSP(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/SFSP/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/SFSP/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX",
@@ -375,7 +408,9 @@ class WIND:
             )
 
     class TDP_SFPD(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/TDP/SFPD/" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/TDP/SFPD/", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "FLUX"
@@ -400,7 +435,9 @@ class WIND:
             )
 
     class SMS(CDAWeb):
-        def __init__(self, download_path: str ="./data/WIND/SMS" , batch_size: int = 10) -> None:
+        def __init__(
+            self, download_path: str = "./data/WIND/SMS", batch_size: int = 10
+        ) -> None:
             super().__init__(download_path, batch_size)
             self.angle: List[int] = [53, 0, -53]
             self.phy_obs: List[str] = [
