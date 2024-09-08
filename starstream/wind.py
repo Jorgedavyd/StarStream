@@ -1,8 +1,7 @@
+import asyncio
 from typing import Callable, List, Tuple
 from ._base import CDAWeb
 from datetime import datetime
-import asyncio
-
 
 def WIND_MAG_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)
@@ -75,6 +74,7 @@ class WIND:
             ]
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/wind/swe/swe_h1/{date[:4]}/wi_h1_swe_{date}_v01.cdf"
+            )
 
     class SWE_electron_angle(CDAWeb):
         def __init__(self, download_path: str ="./data/WIND/SWE/electron_angle/" , batch_size: int = 10) -> None:
@@ -189,10 +189,10 @@ class WIND:
     class TDP_SOPD(CDAWeb):
         def __init__(self, download_path: str ="./data/WIND/TDP/SOPD/" , batch_size: int = 10) -> None:
             super().__init__(download_path, batch_size)
-            self.phy_obs: str = (
+            self.phy_obs: List[str] = [
                 "FLUX"  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
-            )
-            self.pitch_angles: List[str] = [15, 35, 57, 80, 102, 123, 145, 165]
+            ]
+            self.pitch_angles: List[int] = [15, 35, 57, 80, 102, 123, 145, 165]
             self.energy_bands: List[str] = [
                 "70keV",
                 "130keV",

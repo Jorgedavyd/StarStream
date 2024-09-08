@@ -88,9 +88,9 @@ class Dst:
     async def downloader_pipeline(self, scrap_date, session):
         self.get_check_tasks(scrap_date)
 
-        downloading_tasks: List[Coroutine] = self.get_download_tasks(session))
+        downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
 
-        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Downloading for {self.__class__.__name__}..."):
+        for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc = f"Downloading for {self.__class__.__name__}..."):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
 

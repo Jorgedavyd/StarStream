@@ -234,6 +234,6 @@ class DSCOVR(MHD):
             downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
             for i in tqdm(
                 range(0, len(downloading_tasks), self.batch_size),
-                description=f"Download for {self.__class__.__name__}...",
+                desc=f"Download for {self.__class__.__name__}...",
             ):
                 await asyncio.gather(*downloading_tasks[i : i + self.batch_size])

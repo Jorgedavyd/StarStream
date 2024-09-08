@@ -84,14 +84,14 @@ class PROBA_2:
                 downloading_tasks = self.get_download_tasks(session)
                 for i in tqdm(
                     range(0, len(downloading_tasks), self.batch_size),
-                    description=f"Downloading for {self.__class__.__name__}",
+                    desc=f"Downloading for {self.__class__.__name__}",
                 ):
                     await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
                 prep_tasks = self.get_preprocessing_tasks()
                 for i in tqdm(
                     range(0, len(prep_tasks), self.batch_size),
-                    description=f"Downloading for {self.__class__.__name__}",
+                    desc=f"Downloading for {self.__class__.__name__}",
                 ):
                     await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 

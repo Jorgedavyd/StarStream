@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import List
+from typing import List, Tuple
 from .utils import datetime_interval, asyncTAR, handle_client_connection_error
 from datetime import timedelta, datetime
 from ._base import CDAWeb
@@ -12,7 +12,6 @@ import os
 import os.path as osp
 
 __all__ = ["SOHO"]
-
 
 class SOHO:
     class CELIAS_SEM(CDAWeb):
@@ -55,31 +54,42 @@ class SOHO:
         ) -> None:
             super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
-                "C_intensity",
-                "N_intensity",
-                "O_intensity",
-                "Ne_intensity",
-                "Mg_intensity",
-                "Si_intensity",
-                "CNO_intensity",
-                "SiAr_intensity",
-                "FeCoNi_intensity",
+                'PH',
+                'PHC',
+                'P_energy',
+            ] ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/soho_erne-hed_l2-1min_00000000_v01.skt
+            energy_channels: List[str] = [
+                "13  - 16  MeV",
+                "16  - 20  MeV",
+                "20  - 25  MeV",
+                "25  - 32  MeV",
+                "32  - 40  MeV",
+                "40  - 50  MeV",
+                "50  - 64  MeV",
+                "64  - 80  MeV",
+                "80  - 100 MeV",
+                "100 - 130 MeV",
             ]
             self.variables: List[str] = [
-                f"{isotop}_{i}" for isotop in self.phy_obs for i in range(10)
-            ]
+                f'PH_{energy}' for energy in energy_channels
+            ] + [
+                f'PHC_{energy}' for energy in energy_channels
+                ] + [
+                f'P_energy_{energy}' for energy in energy_channels
+                ]
+
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
 
     class COSTEP_EPHIN:
         def __init__(
-            self, download_path: str = "./data/SOHO/COSTEP_EPHIN", batch_size: int = 10
+            self, download_path: str = "./data/SOHO/COSTEP_EPHIN"
         ) -> None:
             super().__init__()
-            self.csv_path: Callable[[str], str] = osp.join(download_path, f"{date}.csv")
+            self.csv_path: Callable[[str], str] = lambda date: osp.join(download_path, f"{date}.csv")
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
-            self.l3i_path: Callable[[str], str] = osp.join(download_path, f"{date}.l3i")
+            self.l3i_path: Callable[[str], str] = lambda date: osp.join(download_path, f"{date}.l3i")
             self.url: str = (
                 "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
             )
@@ -101,15 +111,15 @@ class SOHO:
             ]
 
         async def downloader_pipeline(
-            self, scrap_date: tuple[datetime, datetime], session
+            self, scrap_date: Tuple[datetime, datetime], session
         ):
             self.check_if_downloaded(scrap_date)
             if self.new_scrap_date_list is None:
                 print("Dataset downloaded")
             else:
-                await asyncio.gather(*self.download_url(session))
+                await self.download_url(session)
 
-        def check_if_downloaded(self, scrap_date: tuple[datetime, datetime]):
+        def check_if_downloaded(self, scrap_date: Tuple[datetime, datetime]) -> None:
             self.downloaded = len(glob.glob(self.root + "/*")) == 30
             if self.downloaded:
                 pass

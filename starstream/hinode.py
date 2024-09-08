@@ -1,3 +1,4 @@
+from collections.abc import Coroutine
 from typing import Callable, List, Tuple
 
 from tqdm import tqdm
@@ -21,7 +22,7 @@ class Hinode:
         def __init__(
             self,
             download_path: str = "./data/Hinode/XRT",
-            filetype: str = "png",
+            filetype: str = "fits",
             batch_size: int = 1,
         ) -> None:
             self.filetype: str = filetype
@@ -48,13 +49,16 @@ class Hinode:
                 if len(glob.glob(self.path(f'{date.split("-")[0]}*'))) == 0
             ]
 
-        def get_scrap_tasks(self, session):
+        def get_scrap_tasks(self, session) -> List[Coroutine]:
             print(f"{self.__class__.__name__}: Scrapping URLs and downloading...")
             return [
                 self.scrap_names(session, date, hour)
                 for date, hour in self.new_scrap_date_list
             ]
 
+        @handle_client_connection_error(
+            max_retries=3, increment="exp", default_cooldown=5
+        )
         async def scrap_names(self, session, date, hour) -> None:
             url: str = self.url(date, hour)
             async with session.get(url) as response:
@@ -101,7 +105,7 @@ class Hinode:
                     async with aiofiles.open(self.path(url[-22:-9]), "wb") as file:
                         await file.write(data)
 
-        async def downloader_pipeline(self, scrap_date, session):
+        async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session) -> None:
             self.check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
                 print(f"{self.__class__.__name__} Already downloaded!")
@@ -109,7 +113,7 @@ class Hinode:
                 scrap_tasks = self.get_scrap_tasks(session)
                 for i in tqdm(
                     range(0, len(scrap_tasks), self.batch_size),
-                    description=f"Scrapping and downloading for {self.__class__.__name__}",
+                    desc=f"Scrapping and downloading for {self.__class__.__name__}",
                 ):
                     await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
 

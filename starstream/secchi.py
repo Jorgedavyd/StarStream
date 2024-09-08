@@ -12,9 +12,9 @@ from itertools import chain
 import os
 from PIL import Image
 import os.path as osp
-__all__ = ["STEREO"]
-from icecream import ic
 import re
+
+__all__ = ["STEREO_A"]
 
 def url(name: str) -> str:
     m = re.search(r'(\d{6})_(\d{3})(\d{3})eu_R\.png$', name)
@@ -30,7 +30,7 @@ def url(name: str) -> str:
 class STEREO_A:
     class SECCHI:
         class EUVI:
-            def __init__(self, download_path: str, wavelength: str | Sequence[str], batch_size: int) -> None:
+            def __init__(self, wavelength: str | Sequence[str], download_path: str = './data/STEREO_A/SECCHI/EUVI', batch_size: int = 10) -> None:
                 self.root_path: str = download_path
                 self.batch_size: int = batch_size
                 self.wavelength: str | Sequence[str] = wavelength if not isinstance(wavelength, str) else [wavelength]
@@ -126,13 +126,10 @@ class STEREO_A:
                 else:
                     scrap_tasks: List[Coroutine] = self.get_scrap_names_tasks(scrap_date, session)
 
-                    for i in tqdm(range(0, len(scrap_tasks), self.batch_size), description = f"Preprocessing for {self.__class__.__name__}..."):
+                    for i in tqdm(range(0, len(scrap_tasks), self.batch_size), desc = f"Preprocessing for {self.__class__.__name__}..."):
                         await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
 
                     downloading_tasks = self.get_download_tasks(session)
 
-                    for i in tqdm(range(0, len(downloading_tasks), self.batch_size), description = f"Downloading for {self.__class__.__name__}..."):
+                    for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc = f"Downloading for {self.__class__.__name__}..."):
                         await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-
-
-

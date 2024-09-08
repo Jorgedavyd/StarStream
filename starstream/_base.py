@@ -90,7 +90,7 @@ class CDAWeb:
 
         for i in tqdm(
             range(0, len(downloading_tasks), self.batch_size),
-            description=f"Downloading for {self.__class__.__name__}...",
+            desc=f"Downloading for {self.__class__.__name__}...",
         ):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
@@ -98,7 +98,7 @@ class CDAWeb:
 
         for i in tqdm(
             range(0, len(prep_tasks), self.batch_size),
-            description=f"Preprocessing for {self.__class__.__name__}...",
+            desc=f"Preprocessing for {self.__class__.__name__}...",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 

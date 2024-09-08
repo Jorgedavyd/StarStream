@@ -5,7 +5,6 @@ import glob
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from starstream.utils import (
-    DataDownloading,
     datetime_interval,
     handle_client_connection_error,
 )
@@ -131,7 +130,7 @@ class GOES16:
 
             for i in tqdm(
                 range(0, len(scrap_tasks), self.batch_size),
-                description=f"Scrapping URLs for {self.__class__.__name__}",
+                desc=f"Scrapping URLs for {self.__class__.__name__}",
             ):
                 fits_links = await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
                 fits_links = [*chain.from_iterable(fits_links)]
@@ -142,13 +141,13 @@ class GOES16:
 
             for i in tqdm(
                 range(0, len(down_tasks), self.batch_size),
-                descripion=f"Downloading URLs for {self.__class__.__name__}",
+                desc=f"Downloading URLs for {self.__class__.__name__}",
             ):
                 await asyncio.gather(*down_tasks[i : i + self.batch_size])
 
             prep_tasks = self.get_preprocessing_tasks(fixed_fits_links)
             for i in tqdm(
                 range(0, len(prep_tasks), self.batch_size),
-                descripion=f"Preprocessing for {self.__class__.__name__}",
+                desc=f"Preprocessing for {self.__class__.__name__}",
             ):
                 await asyncio.gather(*prep_tasks[i : i + self.batch_size])
