@@ -70,10 +70,9 @@ class SOHO:
                 "80  - 100 MeV",
                 "100 - 130 MeV",
             ]
-            self.variables: List[str] = (
-                [f"PH_{energy}" for energy in energy_channels]
-                + [f"PHC_{energy}" for energy in energy_channels]
-            )
+            self.variables: List[str] = [
+                f"PH_{energy}" for energy in energy_channels
+            ] + [f"PHC_{energy}" for energy in energy_channels]
 
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"

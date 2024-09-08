@@ -1,7 +1,12 @@
 from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
 from tqdm import tqdm
-from .utils import DataDownloading, asyncFITS, datetime_interval, handle_client_connection_error
+from .utils import (
+    DataDownloading,
+    asyncFITS,
+    datetime_interval,
+    handle_client_connection_error,
+)
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from io import BytesIO
@@ -59,7 +64,7 @@ class Hinode:
         )
         async def scrap_names(self, session, date, hour) -> Union[List[str], None]:
             url: str = self.url(date, hour)
-            async with session.get(url, ssl = False) as response:
+            async with session.get(url, ssl=False) as response:
                 if response.status != 200:
                     print(
                         f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
@@ -83,7 +88,9 @@ class Hinode:
 
                     return download_urls
 
-        def get_downloading_tasks(self, download_urls: List[str], session) -> List[Coroutine]:
+        def get_downloading_tasks(
+            self, download_urls: List[str], session
+        ) -> List[Coroutine]:
             return [self.download_url(session, url) for url in download_urls]
 
         def fits_processing(self, fits_file, path):
@@ -117,17 +124,23 @@ class Hinode:
                     range(0, len(scrap_tasks), self.batch_size),
                     desc=f"Scrapping and downloading for {self.__class__.__name__}",
                 ):
-                    download_urls: List[Union[List[str], None]] = await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
+                    download_urls: List[Union[List[str], None]] = await asyncio.gather(
+                        *scrap_tasks[i : i + self.batch_size]
+                    )
                     download_urls = [*chain.from_iterable(download_urls)]
                     params.extend(download_urls)
 
                 params = [param for param in params if param is not None]
 
-                downloading_tasks: List[Coroutine] = self.get_downloading_tasks(params, session)
+                downloading_tasks: List[Coroutine] = self.get_downloading_tasks(
+                    params, session
+                )
 
-                for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc = f'Downloading for {self.__class__.__name__}'):
-                    await asyncio.gather(*downloading_tasks[i:i+self.batch_size])
-
+                for i in tqdm(
+                    range(0, len(downloading_tasks), self.batch_size),
+                    desc=f"Downloading for {self.__class__.__name__}",
+                ):
+                    await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
         def get_hour_images(self, date: str):
             query_c = "*" + "_".join(date.split("-"))[:-4] + "**"
@@ -144,9 +157,10 @@ class Hinode:
                 )
             ]
 
-if __name__ == '__main__':
-    sample_date: Tuple[datetime, datetime] = (datetime(2020, 10, 10) , datetime(2020, 10, 11))
-    DataDownloading(
-        Hinode.XRT(),
-        sample_date
+
+if __name__ == "__main__":
+    sample_date: Tuple[datetime, datetime] = (
+        datetime(2020, 10, 10),
+        datetime(2020, 10, 11),
     )
+    DataDownloading(Hinode.XRT(), sample_date)

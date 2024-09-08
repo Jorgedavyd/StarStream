@@ -76,17 +76,22 @@ def test_secchi() -> None:
 
     runtime(object)
 
+
 def test_celias_sem() -> None:
     runtime(SOHO.CELIAS_SEM)
+
 
 def test_celias_pm() -> None:
     runtime(SOHO.CELIAS_PM)
 
+
 def test_soho_erne() -> None:
     runtime(SOHO.ERNE)
 
+
 def test_soho_costep_ephin() -> None:
     runtime(SOHO.COSTEP_EPHIN)
+
 
 def test_wind() -> None:
     runtime(WIND.MAG)
