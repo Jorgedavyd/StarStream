@@ -92,10 +92,11 @@ class STEREO_A:
             def get_scrap_names_tasks(self, session) -> List[Coroutine]:
                 return [self.scrap_date_names(session, date, wavelength) for date in self.new_scrap_date_list for wavelength in self.wavelength]
 
-            def check_tasks(self, scrap_date) -> None:
+            def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+                new_scrap_date: List[str] = datetime_interval(*scrap_date)
                 self.new_scrap_date_list = [
                     date
-                    for date in scrap_date
+                    for date in new_scrap_date
                     for wavelength in self.wavelength
                     if len(glob.glob(self.root_path_png_scrap(date, wavelength))) == 0
                 ]
