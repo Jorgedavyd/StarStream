@@ -36,8 +36,8 @@ class STEREO_A:
                 self.wavelength: str | Sequence[str] = wavelength if not isinstance(wavelength, str) else [wavelength]
                 self.url: Callable[[str], str] = url
                 self.scrap_url: Callable[[str, str], str] = lambda date, wavelength: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}"
-                self.euvi_png_path: Callable[[str], str] = lambda name: osp.join(self.root_path, f"{name.split("_")[-2][:6]}", name)
-                self.root_path_png_scrap: Callable[[str, str], str] = lambda date, wavelength: osp.join(self.root_path, wavelength, date, '*')
+                self.euvi_png_path: Callable[[str], str] = lambda name: osp.join(self.root_path, f"{name.split('_')[-2][:6]}", name)
+                self.root_path_png_scrap: Callable[[str, str], str] = lambda date, wavelength: osp.join(self.root_path, wavelength, f"{date}*")
                 self.wavelengths: List[str] = ["171", "195", "284", "304"]
 
                 for wavelength in self.wavelength:
@@ -116,20 +116,25 @@ class STEREO_A:
                 )
                 return self.get_days(scrap_date)
 
-            def get_download_tasks(self, session) -> List[Coroutine]:
-                return [self.download_url(session, date) for date in self.new_scrap_date_list for wavelength in self.wavelength]
+            def get_download_tasks(self, session, name_list: List[str]) -> List[Coroutine]:
+                return [self.download_url(session, name) for name in name_list]
 
             async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session) -> None:
                 self.check_tasks(scrap_date)
                 if len(self.new_scrap_date_list) == 0:
                     print(f'{self.__class__.__name__}: Already downloaded')
                 else:
+                    name_list: List = []
                     scrap_tasks: List[Coroutine] = self.get_scrap_names_tasks(scrap_date, session)
 
                     for i in tqdm(range(0, len(scrap_tasks), self.batch_size), desc = f"Preprocessing for {self.__class__.__name__}..."):
-                        await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
+                        name_batch: List[Union[List[str], None]] = await asyncio.gather(*scrap_tasks[i : i + self.batch_size])
+                        name_batch: List[Union[str, None]]= [*chain.from_iterable(name_batch)]
+                        name_list.extend(name_batch)
 
-                    downloading_tasks = self.get_download_tasks(session)
+                    name_list = [name for name in name_list if name is not None]
+
+                    downloading_tasks = self.get_download_tasks(session, name_list)
 
                     for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc = f"Downloading for {self.__class__.__name__}..."):
                         await asyncio.gather(*downloading_tasks[i : i + self.batch_size])

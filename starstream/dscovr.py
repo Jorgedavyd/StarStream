@@ -124,7 +124,7 @@ class DSCOVR(MHD):
         df = dataset.to_dataframe()
         dataset.close()
         faraday_cup = df[self.var_meta[tool][1]]
-        faraday_cup = faraday_cup.resample("1t").mean()
+        faraday_cup = faraday_cup.resample("1min").mean()
         faraday_cup.to_csv(self.var_meta[tool][0](date))
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
