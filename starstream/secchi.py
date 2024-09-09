@@ -121,7 +121,9 @@ class STEREO_A:
                 ]
 
             def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
-                new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+                new_scrap_date: List[str] = datetime_interval(
+                    *scrap_date, timedelta(days=1)
+                )
                 self.new_scrap_date_list = [
                     date
                     for date in new_scrap_date
