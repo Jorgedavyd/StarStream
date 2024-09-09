@@ -148,7 +148,7 @@ class SOHO:
             async with aiofiles.open(
                 year_path[:-3] + "csv", "w"
             ) as csv_file, aiofiles.open(year_path, "r") as l3i:
-                csv_file.writelines(",".join(self.columns) + "\n")
+                await csv_file.write(",".join(self.columns) + "\n")
                 lines = await l3i.readlines()
                 for line in lines[3:]:
                     data = line.split()
