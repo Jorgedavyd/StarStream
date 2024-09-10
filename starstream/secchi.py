@@ -2,15 +2,14 @@ import asyncio
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
 
 from tqdm import tqdm
-
-from .utils import datetime_interval, handle_client_connection_error
+from icecream import ic
+import aiofiles
+from .utils import DataDownloading, datetime_interval, handle_client_connection_error
 from datetime import datetime, timedelta
-from io import BytesIO
 from bs4 import BeautifulSoup
 import glob
 from itertools import chain
 import os
-from PIL import Image
 import os.path as osp
 import re
 
@@ -28,6 +27,11 @@ def url(name: str) -> str:
     url = f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}/{name}"
     return url
 
+def parseUrl(url: str) -> Tuple[str, str]:
+    url_match = re.search(r"(\d{8})_(\d{6})_(\d{3})eu_R.png", url)
+    date: str = url_match.group(1)
+    wavelength: str = url_match.group(3)
+    return date, wavelength
 
 class STEREO_A:
     class SECCHI:
@@ -43,12 +47,12 @@ class STEREO_A:
                 self.wavelength: str | Sequence[str] = (
                     wavelength if not isinstance(wavelength, str) else [wavelength]
                 )
-                self.url: Callable[[str], str] = url
+                self.url: Callable[[str, str, str], str] = lambda date, wavelength, name: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A/{name}"
                 self.scrap_url: Callable[[str, str], str] = (
-                    lambda date, wavelength: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}"
+                    lambda date, wavelength: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A"
                 )
                 self.euvi_png_path: Callable[[str], str] = lambda name: osp.join(
-                    self.root_path, f"{name.split('_')[-2][:6]}", name
+                    self.root_path, f"{name.split('_')[-2][:3]}", name
                 )
                 self.root_path_png_scrap: Callable[[str, str], str] = (
                     lambda date, wavelength: osp.join(
@@ -56,7 +60,6 @@ class STEREO_A:
                     )
                 )
                 self.wavelengths: List[str] = ["171", "195", "284", "304"]
-
                 for wavelength in self.wavelength:
                     os.makedirs(osp.join(self.root_path, wavelength), exist_ok=True)
 
@@ -79,39 +82,30 @@ class STEREO_A:
                             self.new_scrap_date_list.remove(date)
                             return
                         soup = BeautifulSoup(html, "html.parser")
-                        sizes = [
-                            size.text.strip()
-                            for size in soup.find_all(
-                                "td",
-                                align="right",
-                                text=lambda text: text.endswith("M")
-                                or text.endswith("K"),
-                            )
-                        ]
+
                         names = [
                             name["href"]
                             for name in soup.find_all(
                                 "a", href=lambda href: href.endswith("R.png")
                             )
                         ]
-                        return [
-                            name
-                            for size, name in zip(sizes, names)
-                            if size.endswith("M")
-                        ]
+
+                        return names
 
             @handle_client_connection_error(
                 increment="exp", default_cooldown=5, max_retries=3
             )
             async def download_url(self, session, name: str) -> None:
-                async with session.get(self.url(name), ssl=False) as response:
-                    data = await response.read()
-                    img = await asyncio.get_event_loop().run_in_executor(
-                        None, Image.open, BytesIO(data)
-                    )
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, img.save, self.euvi_png_path(name), "PNG"
-                    )
+                date, wavelength = parseUrl(name)
+                url: str = self.url(date, wavelength, name)
+                async with session.get(url, ssl=False) as response:
+                    if response.status != 200:
+                        print(
+                            f"{self.__class__.__name__}: Data not available for {name}, queried url: {url}"
+                        )
+                    else:
+                        async with aiofiles.open(self.euvi_png_path(name), 'wb') as file:
+                            await file.write(await response.read())
 
             def get_scrap_names_tasks(self, session) -> List[Coroutine]:
                 return [
@@ -131,18 +125,14 @@ class STEREO_A:
                     if len(glob.glob(self.root_path_png_scrap(date, wavelength))) == 0
                 ]
 
-            def get_days(self, scrap_date):
-                return [
-                    *chain.from_iterable(
-                        [glob.glob(self.euvi_png_path(date)) for date in scrap_date]
-                    )
-                ]
-
-            def data_prep(self, scrap_date):
-                scrap_date = datetime_interval(
+            def data_prep(self, scrap_date: Tuple[datetime, datetime]):
+                new_scrap_date = datetime_interval(
                     scrap_date[0], scrap_date[-1], timedelta(days=1)
                 )
-                return self.get_days(scrap_date)
+                out = [glob.glob(self.root_path_png_scrap(date, wavelength)) for date in new_scrap_date for wavelength in self.wavelength]
+                out = [*chain.from_iterable(out)]
+
+                return out
 
             def get_download_tasks(
                 self, session, name_list: List[str]
@@ -163,10 +153,10 @@ class STEREO_A:
                         range(0, len(scrap_tasks), self.batch_size),
                         desc=f"Preprocessing for {self.__class__.__name__}...",
                     ):
-                        name_batch: List[Union[List[str], None]] = await asyncio.gather(
+                        name_batch = await asyncio.gather(
                             *scrap_tasks[i : i + self.batch_size]
                         )
-                        name_batch: List[Union[str, None]] = [
+                        name_batch = [
                             *chain.from_iterable(name_batch)
                         ]
                         name_list.extend(name_batch)

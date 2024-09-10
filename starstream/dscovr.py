@@ -12,7 +12,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Coroutine, Dict, Sequence, Tuple, Callable, List, Union
+from typing import Coroutine, Dict, Tuple, Callable, List, Union
 import os.path as osp
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -24,7 +24,7 @@ __all__ = ["DSCOVR"]
 
 
 class DSCOVR(MHD):
-    def __init__(self, download_path: str = "./data", batch_size: int = 15) -> None:
+    def __init__(self, download_path: str = "./data/DSCOVR", batch_size: int = 15) -> None:
         super().__init__()
         self.batch_size: int = batch_size
         self.root: str = download_path
