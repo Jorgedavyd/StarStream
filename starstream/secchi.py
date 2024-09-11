@@ -1,10 +1,9 @@
 import asyncio
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
+from .utils import datetime_interval, handle_client_connection_error
 
 from tqdm import tqdm
-from icecream import ic
 import aiofiles
-from .utils import DataDownloading, datetime_interval, handle_client_connection_error
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import glob
