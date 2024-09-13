@@ -3,11 +3,10 @@ from typing import Coroutine, List, Tuple
 
 from tqdm import tqdm
 from .utils import asyncCDF, datetime_interval
+from dateutil.relativedelta import relativedelta
 from ._base import CDAWeb
-import aiofiles
 import asyncio
 import os
-from dateutil.relativedelta import relativedelta
 
 __all__ = ["OMNI"]
 
@@ -72,3 +71,4 @@ class OMNI(CDAWeb):
             desc=f"Downloading for {self.__class__.__name__}",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
+
