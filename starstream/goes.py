@@ -8,6 +8,7 @@ from starstream.utils import (
     datetime_interval,
     handle_client_connection_error,
 )
+import os.path as osp
 from itertools import chain
 import gzip
 import aiofiles
@@ -28,6 +29,7 @@ class GOES16:
         assert 0 <= granularity <= 1
         assert instrument in VALID_INSTRUMENTS
         self.batch_size: int = batch_size
+        self.root: str = path
         instrument = f"suvi-l1b-{instrument}"
         root: str = os.path.join(path, instrument)
         self.granularity: float = granularity
@@ -151,3 +153,18 @@ class GOES16:
                 desc=f"Preprocessing for {self.__class__.__name__}",
             ):
                 await asyncio.gather(*prep_tasks[i : i + self.batch_size])
+
+    def data_prep(self, scrap_date: Tuple[datetime, datetime]) -> List[str]:
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+        scrap_files: List[str] = []
+
+        for date in new_scrap_date:
+            for path in os.listdir(self.root):
+                if date in path:
+                    scrap_files.append(path)
+
+        scrap_files = list(map(lambda x: osp.join(self.root, x), scrap_files))
+
+        return scrap_files
+
+

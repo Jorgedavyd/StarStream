@@ -1,13 +1,12 @@
-from datetime import datetime
+from .utils import asyncCDF, datetime_interval, timedelta_to_freq
+from dateutil.relativedelta import relativedelta
+from datetime import datetime, timedelta
 from typing import Coroutine, List, Tuple
-
-from tqdm import tqdm
-from .utils import asyncCDF, datetime_interval
 from ._base import CDAWeb
-import aiofiles
+from tqdm import tqdm
+import pandas as pd
 import asyncio
 import os
-from dateutil.relativedelta import relativedelta
 
 __all__ = ["OMNI"]
 
@@ -72,3 +71,13 @@ class OMNI(CDAWeb):
             desc=f"Downloading for {self.__class__.__name__}",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
+    def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
+        new_scrap_date: List[str] = datetime_interval(*scrap_date,relativedelta(month = 1), '%Y%m')
+        df_list: List[pd.DataFrame] = []
+        for date in new_scrap_date:
+            df_list.append(pd.read_csv(self.csv_path(date)))
+
+        return pd.concat(df_list, axis = 0)\
+                .interpolate()\
+                .resample(timedelta_to_freq(step_size)) \
+                .mean()

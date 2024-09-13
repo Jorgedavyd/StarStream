@@ -156,11 +156,3 @@ class Hinode:
                     [glob.glob(self.path(f"{date}*")) for date in new_scrap_date]
                 )
             ]
-
-
-if __name__ == "__main__":
-    sample_date: Tuple[datetime, datetime] = (
-        datetime(2020, 10, 10),
-        datetime(2020, 10, 11),
-    )
-    DataDownloading(Hinode.XRT(), sample_date)
