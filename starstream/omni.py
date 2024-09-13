@@ -71,4 +71,3 @@ class OMNI(CDAWeb):
             desc=f"Downloading for {self.__class__.__name__}",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
-

@@ -62,7 +62,9 @@ class Hinode:
         @handle_client_connection_error(
             max_retries=3, increment="exp", default_cooldown=5
         )
-        async def scrap_names(self, session, date: str, hour: str) -> Union[List[str], None]:
+        async def scrap_names(
+            self, session, date: str, hour: str
+        ) -> Union[List[str], None]:
             url: str = self.url(date, hour)
             async with session.get(url, ssl=False) as response:
                 if response.status != 200:
