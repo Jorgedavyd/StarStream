@@ -1,4 +1,5 @@
 from .utils import datetime_interval, timedelta_to_freq, handle_client_connection_error
+from typing import Callable, Coroutine, List, Tuple
 from datetime import timedelta, datetime
 from spacepy import pycdf
 from tqdm import tqdm
@@ -7,7 +8,6 @@ import numpy as np
 import aiofiles
 import asyncio
 import os
-from typing import Callable, Coroutine, List, Tuple
 import os.path as osp
 
 
@@ -103,9 +103,9 @@ class CDAWeb:
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
     def get_df_unit(self, date: str) -> pd.DataFrame:
-        return pd.read_csv(self.csv_path(date), parse_dates = True)
+        return pd.read_csv(self.csv_path(date), parse_dates = True, index_col = 0)
 
-    def get_df(self, scrap_date: Tuple[datetime, datetime]) -> List[pd.DataFrame]:
+    def get_df(self, scrap_date: Tuple[datetime, datetime]) -> pd.DataFrame:
         new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
         return pd.concat([self.get_df_unit(date) for date in new_scrap_date])
 

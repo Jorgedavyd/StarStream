@@ -6,7 +6,10 @@ def runtime(object) -> None:
     obj = object()
     DataDownloading(obj, scrap_date_list)
     scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
-    obj.data_prep(scrap_date, timedelta(minutes = 5))
+    try:
+        obj.data_prep(scrap_date, timedelta(minutes = 5))
+    except TypeError:
+        obj.data_prep(scrap_date)
 
 
 def test_dscovr() -> None:

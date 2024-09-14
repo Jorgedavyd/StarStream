@@ -18,7 +18,7 @@ import pandas as pd
 __all__ = ["DataDownloading", "MHD"]
 
 
-def separe_interval(init, end, step_size):
+def separe_interval(init: datetime, end: datetime, step_size: timedelta):
     intervals = []
     current_date = init
     while current_date <= end:
@@ -46,11 +46,11 @@ def l1_hour_steps(
     )
 
 
-def scrap_date_to_month(scrap_date):
+def scrap_date_to_month(scrap_date: List[str]) -> List[str]:
     return [day[:6] for day in scrap_date]
 
 
-async def asyncCDF(cdf_path: str, processing, *args):
+async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
     cdf_file = await asyncio.get_event_loop().run_in_executor(None, pycdf.CDF, cdf_path)
     if iscoroutinefunction(processing):
         out = await processing(cdf_file, *args)
@@ -60,7 +60,7 @@ async def asyncCDF(cdf_path: str, processing, *args):
     return out
 
 
-async def asyncZIP(bytes_obj: BytesIO, processing, *args):
+async def asyncZIP(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     zip_file = await asyncio.get_event_loop().run_in_executor(
         None, zipfile.ZipFile, bytes_obj
     )
@@ -72,7 +72,7 @@ async def asyncZIP(bytes_obj: BytesIO, processing, *args):
     return out
 
 
-async def asyncGZ(bytes_obj: BytesIO, processing, *args):
+async def asyncGZ(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     if iscoroutinefunction(processing):
         out = await processing(gz_file, *args)
@@ -82,17 +82,17 @@ async def asyncGZ(bytes_obj: BytesIO, processing, *args):
     return out
 
 
-async def asyncGZFITS(bytes_obj: BytesIO, processing, *args):
+async def asyncGZFITS(bytes_obj: BytesIO, processing, *args) -> None:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     await asyncFITS(BytesIO(gz_file.read()), processing, *args)
     gz_file.close()
 
 
-def syncGZ(file_obj):
+def syncGZ(file_obj: BytesIO):
     return gzip.GzipFile(fileobj=file_obj)
 
 
-async def asyncTAR(bytes_obj: BytesIO, processing, *args):
+async def asyncTAR(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     tar_file = await asyncio.get_event_loop().run_in_executor(None, syncTAR, bytes_obj)
     if iscoroutinefunction(processing):
         out = await processing(tar_file, *args)
@@ -102,11 +102,11 @@ async def asyncTAR(bytes_obj: BytesIO, processing, *args):
     return out
 
 
-def syncTAR(file_obj):
+def syncTAR(file_obj: BytesIO):
     return tarfile.open(fileobj=file_obj, mode="r")
 
 
-async def asyncFITS(bytes_obj: BytesIO, processing, *args):
+async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     fits_file = await asyncio.get_event_loop().run_in_executor(
         None, fits.open, bytes_obj
     )
@@ -119,7 +119,7 @@ async def asyncFITS(bytes_obj: BytesIO, processing, *args):
 
 
 def flare_hour_steps(
-    init_hour: datetime, last_hour: datetime, step_size, int_seq_len: int
+    init_hour: datetime, last_hour: datetime, step_size: timedelta, int_seq_len: int
 ):
     assert step_size >= timedelta(minutes=2), "2 minutes is the highest resolution"
     hours = []
@@ -169,7 +169,7 @@ def interval_time(
     return date_list
 
 
-def timedelta_to_freq(timedelta_obj) -> str:
+def timedelta_to_freq(timedelta_obj: timedelta) -> str:
     total_seconds = timedelta_obj.total_seconds()
 
     if total_seconds % 1 != 0:
@@ -235,7 +235,7 @@ class MHD:
 
     @staticmethod
     def scaled_alfven_velocity(B, Np: pd.Series):
-        return 20 * (B / Np.sqrt())
+        return 20 * (B / Np.pow(1/2))
 
     @staticmethod
     def scaled_alfven_mach_number(Vp: pd.Series, B: pd.Series, Np: pd.Series):
@@ -243,13 +243,13 @@ class MHD:
 
     @staticmethod
     def scaled_sound_speed(Tp: pd.Series):
-        return 0.12 * (Tp + 1.28e5).sqrt()
+        return 0.12 * (Tp + 1.28e5).pow(1/2)
 
     @staticmethod
     def scaled_magnetosonic_speed(B: pd.Series, Np: pd.Series, Tp: pd.Series):
         V_A = MHD.scaled_alfven_velocity(B, Np)
         C_s = MHD.scaled_sound_speed(Tp)
-        return (C_s**2 + V_A**2).sqrt()
+        return (C_s**2 + V_A**2).pow(1/2)
 
     @staticmethod
     def scaled_magnetosonic_mach_number(Vp, B, Np, Tp):
