@@ -1,10 +1,9 @@
 import asyncio
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
+from .utils import datetime_interval, handle_client_connection_error
 
 from tqdm import tqdm
-from icecream import ic
 import aiofiles
-from .utils import DataDownloading, datetime_interval, handle_client_connection_error
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import glob
@@ -27,11 +26,13 @@ def url(name: str) -> str:
     url = f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}/{name}"
     return url
 
+
 def parseUrl(url: str) -> Tuple[str, str]:
     url_match = re.search(r"(\d{8})_(\d{6})_(\d{3})eu_R.png", url)
     date: str = url_match.group(1)
     wavelength: str = url_match.group(3)
     return date, wavelength
+
 
 class STEREO_A:
     class SECCHI:
@@ -47,7 +48,9 @@ class STEREO_A:
                 self.wavelength: str | Sequence[str] = (
                     wavelength if not isinstance(wavelength, str) else [wavelength]
                 )
-                self.url: Callable[[str, str, str], str] = lambda date, wavelength, name: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A/{name}"
+                self.url: Callable[[str, str, str], str] = (
+                    lambda date, wavelength, name: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A/{name}"
+                )
                 self.scrap_url: Callable[[str, str], str] = (
                     lambda date, wavelength: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{wavelength}_A"
                 )
@@ -104,7 +107,9 @@ class STEREO_A:
                             f"{self.__class__.__name__}: Data not available for {name}, queried url: {url}"
                         )
                     else:
-                        async with aiofiles.open(self.euvi_png_path(name), 'wb') as file:
+                        async with aiofiles.open(
+                            self.euvi_png_path(name), "wb"
+                        ) as file:
                             await file.write(await response.read())
 
             def get_scrap_names_tasks(self, session) -> List[Coroutine]:
@@ -129,7 +134,11 @@ class STEREO_A:
                 new_scrap_date = datetime_interval(
                     scrap_date[0], scrap_date[-1], timedelta(days=1)
                 )
-                out = [glob.glob(self.root_path_png_scrap(date, wavelength)) for date in new_scrap_date for wavelength in self.wavelength]
+                out = [
+                    glob.glob(self.root_path_png_scrap(date, wavelength))
+                    for date in new_scrap_date
+                    for wavelength in self.wavelength
+                ]
                 out = [*chain.from_iterable(out)]
 
                 return out
@@ -156,9 +165,7 @@ class STEREO_A:
                         name_batch = await asyncio.gather(
                             *scrap_tasks[i : i + self.batch_size]
                         )
-                        name_batch = [
-                            *chain.from_iterable(name_batch)
-                        ]
+                        name_batch = [*chain.from_iterable(name_batch)]
                         name_list.extend(name_batch)
 
                     name_list = [name for name in name_list if name is not None]

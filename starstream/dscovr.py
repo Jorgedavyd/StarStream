@@ -24,7 +24,9 @@ __all__ = ["DSCOVR"]
 
 
 class DSCOVR(MHD):
-    def __init__(self, download_path: str = "./data/DSCOVR", batch_size: int = 15) -> None:
+    def __init__(
+        self, download_path: str = "./data/DSCOVR", batch_size: int = 15
+    ) -> None:
         super().__init__()
         self.batch_size: int = batch_size
         self.root: str = download_path

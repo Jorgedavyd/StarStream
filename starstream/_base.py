@@ -120,6 +120,7 @@ class CDAWeb:
         df = pd.concat(dfs)
         return (
             df[(df.index >= scrap_date[0]) & (df.index <= scrap_date[-1])]
+            .interpolate()
             .resample(timedelta_to_freq(step_size))
             .mean()
         )

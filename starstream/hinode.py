@@ -62,21 +62,23 @@ class Hinode:
         @handle_client_connection_error(
             max_retries=3, increment="exp", default_cooldown=5
         )
-        async def scrap_names(self, session, date, hour) -> Union[List[str], None]:
+        async def scrap_names(
+            self, session, date: str, hour: str
+        ) -> Union[List[str], None]:
             url: str = self.url(date, hour)
             async with session.get(url, ssl=False) as response:
                 if response.status != 200:
                     print(
                         f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                     )
-                    self.new_scrap_date_list.remove(date)
+                    self.new_scrap_date_list.remove((date, hour))
                 else:
                     html = await response.text()
                     if "404 Not Found" in html:
                         print(
                             f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                         )
-                        self.new_scrap_date_list.remove(date)
+                        self.new_scrap_date_list.remove((date, hour))
                         return
                     soup = BeautifulSoup(html, "html.parser")
                     fits_links = soup.find_all(

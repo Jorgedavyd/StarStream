@@ -166,5 +166,3 @@ class GOES16:
         scrap_files = list(map(lambda x: osp.join(self.root, x), scrap_files))
 
         return scrap_files
-
-
