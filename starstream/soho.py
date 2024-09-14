@@ -166,13 +166,12 @@ class SOHO:
             df.resample("1min").mean().to_csv(year_path[:-3] + "csv")
 
         def sync_read_csv(
-            self, path: str, parse_dates: list[str], index_col: str, date_format: str
+            self, path: str
         ):
             return pd.read_csv(
                 path,
-                parse_dates=parse_dates,
-                index_col=index_col,
-                date_format=date_format,
+                index_col=0,
+                parse_dates=True,
             )
 
         async def get_df(self, year):
@@ -180,9 +179,6 @@ class SOHO:
                 None,
                 self.sync_read_csv,
                 self.csv_path(year),
-                ["datetime"],
-                "datetime",
-                "%Y-%m-%d %H:%M:%S",
             )
             return pd.from_pandas(df)
 
@@ -203,5 +199,5 @@ class SOHO:
                     )
                 )
             )
-            df = pd.concat(await asyncio.gather(*[self.get_df(year) for year in years]))
+            df = pd.concat(await asyncio.gather(*[self.get_df(year) for year in years])).interpolate()
             return df[(df.index >= init_date) & (df.index <= last_date)]

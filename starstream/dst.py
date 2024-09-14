@@ -12,6 +12,8 @@ from tqdm import tqdm
 
 __all__ = ["Dst"]
 
+def last_december() -> datetime:
+    return datetime(datetime.today().year - 1, 12, 31)
 
 class Dst:
     def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
@@ -23,14 +25,14 @@ class Dst:
         os.makedirs(self.root, exist_ok=True)
 
     def date_to_url(self, month: str) -> str:
-        if datetime.strptime(month, "%Y%m") > datetime(
-            2022, 12, 31
-        ):  # UPDATED FOR 2023, 2024, manually update if the page has change
+        date=datetime.strptime(month,"%Y%m")
+        last_decem=last_december()
+        if date > last_decem:
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_realtime/{month}/dst{month[2:]}.for.request"
-        elif datetime.strptime(month, "%Y%m") > datetime(
-            2016, 12, 31
-        ):  # UPDATED FOR 2023, 2024, manually update if the page has change
+
+        elif date > datetime(last_decem.year - 4, 12, 31):
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/{month}/dst{month[2:]}.for.request"
+
         else:
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_final/{month}/dst{month[2:]}.for.request"
 

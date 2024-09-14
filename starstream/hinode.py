@@ -2,7 +2,6 @@ from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
 from tqdm import tqdm
 from .utils import (
-    DataDownloading,
     asyncFITS,
     datetime_interval,
     handle_client_connection_error,
@@ -71,15 +70,20 @@ class Hinode:
                     print(
                         f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                     )
-                    self.new_scrap_date_list.remove((date, hour))
+                    self.new_scrap_date_list = [
+                        item for item in self.new_scrap_date_list if item != (date, hour)
+                    ]
                 else:
                     html = await response.text()
                     if "404 Not Found" in html:
                         print(
                             f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                         )
-                        self.new_scrap_date_list.remove((date, hour))
+                        self.new_scrap_date_list = [
+                            item for item in self.new_scrap_date_list if item != (date, hour)
+                        ]
                         return
+
                     soup = BeautifulSoup(html, "html.parser")
                     fits_links = soup.find_all(
                         "a", href=lambda href: href and href.endswith(".fits")

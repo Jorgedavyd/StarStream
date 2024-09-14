@@ -168,7 +168,7 @@ class DSCOVR(MHD):
     def get_df(
         self, path: Callable[[str], str], date: str, obs: List[str]
     ) -> pd.DataFrame:
-        df = pd.read_csv(path(date), index_col=0)
+        df = pd.read_csv(path(date), index_col=0, parse_dates = True)
         return df[obs]
 
     def get_dfs(
@@ -200,15 +200,15 @@ class DSCOVR(MHD):
 
         l1 = pd.concat(
             [
-                fc1.resample(timedelta_to_freq(step_size)).mean(),
-                mg1.resample(timedelta_to_freq(step_size)).mean(),
+                fc1.interpolate().resample(timedelta_to_freq(step_size)).mean(),
+                mg1.interpolate().resample(timedelta_to_freq(step_size)).mean(),
             ],
             axis=1,
         )
         l2 = pd.concat(
             [
-                f1m.resample(timedelta_to_freq(step_size)).mean(),
-                m1m.resample(timedelta_to_freq(step_size)).mean(),
+                f1m.interpolate().resample(timedelta_to_freq(step_size)).mean(),
+                m1m.interpolate().resample(timedelta_to_freq(step_size)).mean(),
             ],
             axis=1,
         )

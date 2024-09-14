@@ -1,6 +1,6 @@
 from typing import Callable, Coroutine, List, Tuple
 from tqdm import tqdm
-from .utils import datetime_interval, handle_client_connection_error
+from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq
 from astropy.io import fits
 from io import BytesIO
 import numpy as np
@@ -9,6 +9,7 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 import os.path as osp
+import pandas as pd
 
 __all__ = ["PROBA_2"]
 
@@ -95,6 +96,15 @@ class PROBA_2:
                 ):
                     await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
+        def get_df(self, date: str):
+            return pd.read_csv(self.lyra_csv_path(date), parse_dates = True)
+
+        def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
+            new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+            return pd.concat([self.get_df(date) for date in new_scrap_date])\
+                            .interpolate() \
+                            .resample(timedelta_to_freq(step_size)) \
+                            .mean()
 
 def save_npy(file, array) -> None:
     np.savetxt(file, array, delimiter=",")

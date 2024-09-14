@@ -1,10 +1,12 @@
-from starstream.secchi import STEREO_A
 from .input_data import scrap_date_list
+from typing import Tuple
 from starstream import *
 
-
 def runtime(object) -> None:
-    DataDownloading(object(), scrap_date_list)
+    obj = object()
+    DataDownloading(obj, scrap_date_list)
+    scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
+    obj.data_prep(scrap_date, timedelta(minutes = 5))
 
 
 def test_dscovr() -> None:

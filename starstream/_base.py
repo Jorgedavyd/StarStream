@@ -102,22 +102,17 @@ class CDAWeb:
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
-    async def get_df_unit(self, date: str) -> pd.DataFrame:
-        df = await asyncio.get_event_loop().run_in_executor(
-            None, pd.read_csv, self.csv_path(date)
-        )
-        return df
+    def get_df_unit(self, date: str) -> pd.DataFrame:
+        return pd.read_csv(self.csv_path(date), parse_dates = True)
 
-    async def get_df(self, scrap_date: Tuple[datetime, datetime]) -> List[pd.DataFrame]:
+    def get_df(self, scrap_date: Tuple[datetime, datetime]) -> List[pd.DataFrame]:
         new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
-        dfs = await asyncio.gather(*[self.get_df_unit(date) for date in new_scrap_date])
-        return dfs
+        return pd.concat([self.get_df_unit(date) for date in new_scrap_date])
 
     def data_prep(
         self, scrap_date: Tuple[datetime, datetime], step_size: timedelta
     ) -> pd.DataFrame:
-        dfs = asyncio.run(self.get_df(scrap_date))
-        df = pd.concat(dfs)
+        df: pd.DataFrame = self.get_df(scrap_date)
         return (
             df[(df.index >= scrap_date[0]) & (df.index <= scrap_date[-1])]
             .interpolate()

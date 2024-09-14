@@ -2,17 +2,9 @@ from .utils import asyncCDF, datetime_interval, timedelta_to_freq
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 from typing import Coroutine, List, Tuple
-<<<<<<< HEAD
 from ._base import CDAWeb
 from tqdm import tqdm
 import pandas as pd
-=======
-
-from tqdm import tqdm
-from .utils import asyncCDF, datetime_interval
-from dateutil.relativedelta import relativedelta
-from ._base import CDAWeb
->>>>>>> a43a832844fd57b71feb7aeb0bb83a277cf25dd7
 import asyncio
 import os
 
