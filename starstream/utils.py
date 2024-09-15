@@ -191,6 +191,7 @@ def timedelta_to_freq(timedelta_obj: timedelta) -> str:
 
     return "".join(freq_parts) if freq_parts else "0s"
 
+
 async def downloader(scrap_date, sat_objs) -> None:
     async with aiohttp.ClientSession() as session:
         if isinstance(sat_objs, (list, tuple)):
@@ -232,7 +233,7 @@ class MHD:
 
     @staticmethod
     def scaled_alfven_velocity(B, Np: pd.Series):
-        return 20 * (B / Np.pow(1/2))
+        return 20 * (B / Np.pow(1 / 2))
 
     @staticmethod
     def scaled_alfven_mach_number(Vp: pd.Series, B: pd.Series, Np: pd.Series):
@@ -240,13 +241,13 @@ class MHD:
 
     @staticmethod
     def scaled_sound_speed(Tp: pd.Series):
-        return 0.12 * (Tp + 1.28e5).pow(1/2)
+        return 0.12 * (Tp + 1.28e5).pow(1 / 2)
 
     @staticmethod
     def scaled_magnetosonic_speed(B: pd.Series, Np: pd.Series, Tp: pd.Series):
         V_A = MHD.scaled_alfven_velocity(B, Np)
         C_s = MHD.scaled_sound_speed(Tp)
-        return (C_s**2 + V_A**2).pow(1/2)
+        return (C_s**2 + V_A**2).pow(1 / 2)
 
     @staticmethod
     def scaled_magnetosonic_mach_number(Vp, B, Np, Tp):

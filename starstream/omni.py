@@ -72,11 +72,20 @@ class OMNI(CDAWeb):
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
-    def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, relativedelta(months = 1), '%Y%m')
-        df_list: List[pd.DataFrame] = [pd.read_csv(self.csv_path(date), parse_dates = True, index_col = 0) for date in new_scrap_date]
+    def data_prep(
+        self, scrap_date: Tuple[datetime, datetime], step_size: timedelta
+    ) -> pd.DataFrame:
+        new_scrap_date: List[str] = datetime_interval(
+            *scrap_date, relativedelta(months=1), "%Y%m"
+        )
+        df_list: List[pd.DataFrame] = [
+            pd.read_csv(self.csv_path(date), parse_dates=True, index_col=0)
+            for date in new_scrap_date
+        ]
 
-        return pd.concat(df_list, axis = 0)\
-                .resample(timedelta_to_freq(step_size)) \
-                .mean() \
-                .interpolate()
+        return (
+            pd.concat(df_list, axis=0)
+            .resample(timedelta_to_freq(step_size))
+            .mean()
+            .interpolate()
+        )

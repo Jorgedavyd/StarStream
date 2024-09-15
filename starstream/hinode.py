@@ -71,7 +71,9 @@ class Hinode:
                         f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                     )
                     self.new_scrap_date_list = [
-                        item for item in self.new_scrap_date_list if item != (date, hour)
+                        item
+                        for item in self.new_scrap_date_list
+                        if item != (date, hour)
                     ]
                 else:
                     html = await response.text()
@@ -80,7 +82,9 @@ class Hinode:
                             f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
                         )
                         self.new_scrap_date_list = [
-                            item for item in self.new_scrap_date_list if item != (date, hour)
+                            item
+                            for item in self.new_scrap_date_list
+                            if item != (date, hour)
                         ]
                         return
 

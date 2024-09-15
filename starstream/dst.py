@@ -12,8 +12,10 @@ import os
 
 __all__ = ["Dst"]
 
+
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
+
 
 class Dst:
     def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
@@ -25,8 +27,8 @@ class Dst:
         os.makedirs(self.root, exist_ok=True)
 
     def date_to_url(self, month: str) -> str:
-        date=datetime.strptime(month,"%Y%m")
-        last_decem=last_december()
+        date = datetime.strptime(month, "%Y%m")
+        last_decem = last_december()
 
         if date > last_decem:
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_realtime/{month}/dst{month[2:]}.for.request"
@@ -71,11 +73,11 @@ class Dst:
                     line.replace("-", " -").replace("+", " +").split()[-24:]
                 )
 
-            out_list.insert(0, 'dst_index')
+            out_list.insert(0, "dst_index")
 
             async with aiofiles.open(self.csv_path(month), "w") as f:
                 for line in out_list:
-                    await f.write(line + ',\n')
+                    await f.write(line + ",\n")
 
     """Main object pipeline"""
 
@@ -93,10 +95,10 @@ class Dst:
     """Prep pipeline"""
 
     def get_df_unit(self, date: str) -> pd.Series:
-        df = pd.read_csv(self.csv_path(date))['dst_index']
+        df = pd.read_csv(self.csv_path(date))["dst_index"]
         start_date = datetime(int(date[:4]), int(date[4:6]), 1)
         end_date = start_date + relativedelta(months=1) - timedelta(hours=1)
-        full_range = pd.date_range(start=start_date, end=end_date, freq='1h')
+        full_range = pd.date_range(start=start_date, end=end_date, freq="1h")
         df.index = full_range
         return df
 
@@ -107,14 +109,18 @@ class Dst:
         return pd.concat([self.get_df_unit(date) for date in month_scrap])
 
     def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta):
-        assert (timedelta(hours = 1) <= step_size), "Not valid step_size, must be greater than 1 hour"
+        assert (
+            timedelta(hours=1) <= step_size
+        ), "Not valid step_size, must be greater than 1 hour"
 
         init_date = pd.to_datetime(scrap_date[0])
         last_date = pd.to_datetime(scrap_date[-1])
 
         serie = self.get_df(scrap_date)
 
-        return serie[(serie.index >= init_date) & (serie.index <= last_date)] \
-                .interpolate() \
-                .resample(timedelta_to_freq(step_size)) \
-                .mean()
+        return (
+            serie[(serie.index >= init_date) & (serie.index <= last_date)]
+            .interpolate()
+            .resample(timedelta_to_freq(step_size))
+            .mean()
+        )
