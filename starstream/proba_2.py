@@ -2,7 +2,6 @@ from typing import Callable, Coroutine, List, Tuple
 from numpy._typing import NDArray
 from tqdm import tqdm
 from .utils import (
-    DataDownloading,
     datetime_interval,
     handle_client_connection_error,
     timedelta_to_freq,
@@ -87,10 +86,11 @@ class PROBA_2:
                     data = np.stack(hdul[1].data, axis=0)
                     data[:, 1:] = data[:, 1:].astype(np.float32)
                     data[:, 0] = min_to_datetime(data[:, 0], date)
-                    print(data)
                     np.savetxt(
                         self.lyra_csv_path(date),
                         data[:, :-1],
+                        header = ',x1,x2,x3,x4',
+                        fmt = '%s',
                         delimiter=",",
                     )
             os.remove(self.lyra_fits_path(date))
@@ -117,7 +117,7 @@ class PROBA_2:
                     await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
         def get_df(self, date: str):
-            return pd.read_csv(self.lyra_csv_path(date), parse_dates=True, index_col=0)
+            return pd.read_csv(self.lyra_csv_path(date), parse_dates=True, index_col=['# '])
 
         def data_prep(
             self, scrap_date: Tuple[datetime, datetime], step_size: timedelta
@@ -131,11 +131,3 @@ class PROBA_2:
                 .resample(timedelta_to_freq(step_size))
                 .mean()
             )
-
-
-def save_npy(file, array) -> None:
-    np.savetxt(file, array, delimiter=",")
-
-
-if __name__ == "__main__":
-    DataDownloading(PROBA_2.LYRA(), (datetime(2020, 10, 10), datetime(2020, 10, 11)))
