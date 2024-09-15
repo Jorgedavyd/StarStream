@@ -1,6 +1,7 @@
 from typing import Callable, Coroutine, List, Tuple
+from numpy._typing import NDArray
 from tqdm import tqdm
-from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq
+from .utils import DataDownloading, datetime_interval, handle_client_connection_error, timedelta_to_freq
 from astropy.io import fits
 from io import BytesIO
 import numpy as np
@@ -13,6 +14,14 @@ import pandas as pd
 
 __all__ = ["PROBA_2"]
 
+def min_to_datetime(data: NDArray, date: str) -> NDArray:
+    def func(min: int) -> datetime:
+        first_date = datetime.strptime(date, '%Y%m%d')
+        hours = min // 60
+        mins = min % 60
+        return datetime(first_date.year, first_date.month, first_date.day, hours, mins)
+
+    return np.array([func(int(item.item())) for item in data])
 
 class PROBA_2:
     class LYRA:
@@ -68,9 +77,13 @@ class PROBA_2:
             async with aiofiles.open(self.lyra_fits_path(date), "rb") as f:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
+                    data = np.stack(hdul[1].data, axis = 0)
+                    data[:, 1:] = data[:, 1:].astype(np.float32)
+                    data[:, 0] = min_to_datetime(data[:,0], date)
+                    print(data)
                     np.savetxt(
                         self.lyra_csv_path(date),
-                        np.array(list(hdul[1].data), dtype=np.float32),
+                        data[:, :-1],
                         delimiter=",",
                     )
             os.remove(self.lyra_fits_path(date))
@@ -108,3 +121,9 @@ class PROBA_2:
 
 def save_npy(file, array) -> None:
     np.savetxt(file, array, delimiter=",")
+
+if __name__ == '__main__':
+    DataDownloading(
+        PROBA_2.LYRA(),
+        (datetime(2020, 10, 10), datetime(2020, 10, 11))
+    )

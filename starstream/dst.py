@@ -1,4 +1,4 @@
-from .utils import DataDownloading, datetime_interval, handle_client_connection_error, timedelta_to_freq
+from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq
 from typing import Callable, Coroutine, List, Tuple
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
