@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Set up scripts
         run: |
           sudo chmod +x ./scripts/*.sh
@@ -38,11 +38,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo sh ./scripts/requirements.sh
-      
+
       - name: Run tests
         run: |
           sudo sh ./scripts/test.sh
-          
+
       - name: Commit to repo
         if: matrix.commit == true
         run: |

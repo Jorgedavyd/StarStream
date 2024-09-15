@@ -171,28 +171,25 @@ def interval_time(
 
 def timedelta_to_freq(timedelta_obj: timedelta) -> str:
     total_seconds = timedelta_obj.total_seconds()
-
     if total_seconds % 1 != 0:
         raise ValueError("Timedelta must represent a whole number of seconds")
 
-    days = total_seconds // (24 * 3600)
-    hours = (total_seconds % (24 * 3600)) // 3600
-    minutes = ((total_seconds % (24 * 3600)) % 3600) // 60
-    seconds = ((total_seconds % (24 * 3600)) % 3600) % 60
+    days = int(total_seconds // (24 * 3600))
+    hours = int((total_seconds % (24 * 3600)) // 3600)
+    minutes = int(((total_seconds % (24 * 3600)) % 3600) // 60)
+    seconds = int(((total_seconds % (24 * 3600)) % 3600) % 60)
 
-    freq_str = ""
-
+    freq_parts = []
     if days > 0:
-        freq_str += str(int(days)) + "day"
+        freq_parts.append(f"{days}d")
     if hours > 0:
-        freq_str += str(int(hours)) + "hour"
+        freq_parts.append(f"{hours}h")
     if minutes > 0:
-        freq_str += str(int(minutes)) + "min"
+        freq_parts.append(f"{minutes}min")
     if seconds > 0:
-        freq_str += str(int(seconds)) + "sec"
+        freq_parts.append(f"{seconds}s")
 
-    return freq_str
-
+    return "".join(freq_parts) if freq_parts else "0s"
 
 async def downloader(scrap_date, sat_objs) -> None:
     async with aiohttp.ClientSession() as session:

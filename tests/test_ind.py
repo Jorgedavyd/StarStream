@@ -7,7 +7,7 @@ def runtime(object) -> None:
     DataDownloading(obj, scrap_date_list)
     scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
     try:
-        obj.data_prep(scrap_date, timedelta(minutes = 5))
+        obj.data_prep(scrap_date, timedelta(hours = 1))
     except TypeError:
         obj.data_prep(scrap_date)
 
@@ -42,14 +42,14 @@ def test_omni() -> None:
 
 def test_goes() -> None:
     def object():
-        return GOES16("fe094", granularity=0.1, batch_size=15)
+        return GOES16("fe094", granularity=1/60, batch_size=15)
 
     runtime(object)
 
 
 def test_hinode() -> None:
     def object():
-        return Hinode.XRT()
+        return Hinode.XRT(batch_size = 15)
 
     runtime(object)
 

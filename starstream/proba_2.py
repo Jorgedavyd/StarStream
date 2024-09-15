@@ -32,7 +32,7 @@ class PROBA_2:
                 self.lyra_folder_path, f"{date}.fits"
             )
             self.lyra_csv_path: Callable[[str], str] = lambda date: osp.join(
-                self.lyra_folder_path, f"{date}.fits"
+                self.lyra_folder_path, f"{date}.csv"
             )
             os.makedirs(self.lyra_folder_path, exist_ok=True)
             self.sl: timedelta = sequence_length
@@ -97,7 +97,7 @@ class PROBA_2:
                     await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
         def get_df(self, date: str):
-            return pd.read_csv(self.lyra_csv_path(date), parse_dates = True)
+            return pd.read_csv(self.lyra_csv_path(date), parse_dates = True, index_col = 0)
 
         def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
             new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))

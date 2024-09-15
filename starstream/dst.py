@@ -1,14 +1,14 @@
-from .utils import datetime_interval, handle_client_connection_error
-from datetime import datetime
+from .utils import DataDownloading, datetime_interval, handle_client_connection_error, timedelta_to_freq
+from typing import Callable, Coroutine, List, Tuple
 from dateutil.relativedelta import relativedelta
+from datetime import datetime, timedelta
+import os.path as osp
+from tqdm import tqdm
 import pandas as pd
 import aiofiles
 import asyncio
 import asyncio
 import os
-import os.path as osp
-from typing import Callable, Coroutine, List, Tuple
-from tqdm import tqdm
 
 __all__ = ["Dst"]
 
@@ -27,10 +27,11 @@ class Dst:
     def date_to_url(self, month: str) -> str:
         date=datetime.strptime(month,"%Y%m")
         last_decem=last_december()
+
         if date > last_decem:
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_realtime/{month}/dst{month[2:]}.for.request"
 
-        elif date > datetime(last_decem.year - 4, 12, 31):
+        elif date > datetime(last_decem.year - 3, 12, 31):
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/{month}/dst{month[2:]}.for.request"
 
         else:
@@ -62,31 +63,19 @@ class Dst:
     async def download_url(self, month, session):
         async with session.get(self.date_to_url(month), ssl=False) as request:
             data = await request.text()
-            data = data.split("\n")
-            line_lambda = (
-                lambda line: ",\n".join(
+            data = data.split("\n")[:-2]
+            out_list: List[str] = []
+
+            for line in data:
+                out_list.extend(
                     line.replace("-", " -").replace("+", " +").split()[-24:]
                 )
-                + "\n"
-            )
+
+            out_list.insert(0, 'dst_index')
+
             async with aiofiles.open(self.csv_path(month), "w") as f:
-                for line in data:
-                    await f.write(line_lambda(line))
-
-    """Preprocessing"""
-
-    async def single_import(self, month) -> pd.DataFrame:
-        csv = await asyncio.get_event_loop().run_in_executor(
-            None, pd.read_csv, self.csv_path(month)
-        )
-        start_date = pd.Timestamp(
-            int(month[:4]), int(month[4:6]), 1, 0
-        )  # Start of the month at midnight
-        end_date = start_date + pd.offsets.MonthEnd(1)
-        csv.index = pd.timedelta_range(
-            start_date, end_date, freq="1H", inclusive="both"
-        )
-        return csv
+                for line in out_list:
+                    await f.write(line + ',\n')
 
     """Main object pipeline"""
 
@@ -103,16 +92,29 @@ class Dst:
 
     """Prep pipeline"""
 
-    async def data_prep(self, scrap_date: Tuple[datetime, datetime]):
+    def get_df_unit(self, date: str) -> pd.Series:
+        df = pd.read_csv(self.csv_path(date))['dst_index']
+        start_date = datetime(int(date[:4]), int(date[4:6]), 1)
+        end_date = start_date + relativedelta(months=1) - timedelta(hours=1)
+        full_range = pd.date_range(start=start_date, end=end_date, freq='1h')
+        df.index = full_range
+        return df
+
+    def get_df(self, scrap_date: Tuple[datetime, datetime]) -> pd.Series:
         month_scrap: List[str] = datetime_interval(
             scrap_date[0], scrap_date[-1], relativedelta(months=1), "%Y%m"
         )
+        return pd.concat([self.get_df_unit(date) for date in month_scrap])
+
+    def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta):
+        assert (timedelta(hours = 1) <= step_size), "Not valid step_size, must be greater than 1 hour"
 
         init_date = pd.to_datetime(scrap_date[0])
         last_date = pd.to_datetime(scrap_date[-1])
 
-        csvs = await asyncio.gather(
-            *[self.single_import(month) for month in month_scrap]
-        )
-        serie = pd.concat(csvs)
-        return serie[(serie.index >= init_date) & (serie.index <= last_date)]
+        serie = self.get_df(scrap_date)
+
+        return serie[(serie.index >= init_date) & (serie.index <= last_date)] \
+                .interpolate() \
+                .resample(timedelta_to_freq(step_size)) \
+                .mean()
