@@ -10,12 +10,11 @@ import zipfile
 import asyncio
 import tarfile
 import gzip
+from typing import Dict, Tuple, List, Any, Union
 from inspect import iscoroutinefunction
 import aiohttp
-from typing import Dict, Tuple, List, Any, Union
-import pandas as pd
 
-__all__ = ["DataDownloading", "MHD"]
+__all__ = ["DataDownloading"]
 
 
 def separe_interval(init: datetime, end: datetime, step_size: timedelta):
@@ -213,77 +212,6 @@ def DataDownloading(
     else:
         for date in scrap_date:
             asyncio.run(downloader(date, sat_objs))
-
-
-class MHD:
-    """
-    Feature Engineering for ACE and DSCOVR based on magnetohydrodinamics
-    """
-
-    @staticmethod
-    def scaled_flow_pressure(Np: pd.Series, Vp: pd.Series):
-        return 2e-6 * Np * Vp**2
-
-    @staticmethod
-    def scaled_plasma_beta(T: pd.Series, Np: pd.Series, B: pd.Series):
-        T_eV = T * 4.16e-05
-        beta = ((T_eV + 5.34) * Np) / (B**2)
-        return beta
-
-    @staticmethod
-    def scaled_alfven_velocity(B, Np: pd.Series):
-        return 20 * (B / Np.pow(1/2))
-
-    @staticmethod
-    def scaled_alfven_mach_number(Vp: pd.Series, B: pd.Series, Np: pd.Series):
-        return Vp / MHD.scaled_alfven_velocity(B, Np)
-
-    @staticmethod
-    def scaled_sound_speed(Tp: pd.Series):
-        return 0.12 * (Tp + 1.28e5).pow(1/2)
-
-    @staticmethod
-    def scaled_magnetosonic_speed(B: pd.Series, Np: pd.Series, Tp: pd.Series):
-        V_A = MHD.scaled_alfven_velocity(B, Np)
-        C_s = MHD.scaled_sound_speed(Tp)
-        return (C_s**2 + V_A**2).pow(1/2)
-
-    @staticmethod
-    def scaled_magnetosonic_mach_number(Vp, B, Np, Tp):
-        V_MS = MHD.scaled_magnetosonic_speed(B, Np, Tp)
-        return Vp / V_MS
-
-    @staticmethod
-    def apply_features(
-        df: pd.DataFrame,
-        magnetic_field_norm: str,
-        proton_density: str,
-        proton_bulk_velocity: str,
-        proton_temperature: str,
-    ):
-        df["flow_pressure"] = MHD.scaled_flow_pressure(
-            df[proton_density], df[proton_bulk_velocity]
-        )
-        df["beta"] = MHD.scaled_plasma_beta(
-            df[proton_temperature], df[proton_density], df[magnetic_field_norm]
-        )
-        df["alfven_mach_number"] = MHD.scaled_alfven_mach_number(
-            df[proton_bulk_velocity], df[magnetic_field_norm], df[proton_density]
-        )
-        df["magnetosonic_mach_number"] = MHD.scaled_magnetosonic_mach_number(
-            df[proton_bulk_velocity],
-            df[magnetic_field_norm],
-            df[proton_density],
-            df[proton_temperature],
-        )
-        df["alfven_velocity"] = MHD.scaled_alfven_velocity(
-            df[magnetic_field_norm], df[proton_density]
-        )
-        df["magnetosonic_speed"] = MHD.scaled_magnetosonic_speed(
-            df[magnetic_field_norm], df[proton_density], df[proton_temperature]
-        )
-        return df
-
 
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="exp"

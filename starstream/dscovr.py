@@ -6,7 +6,6 @@ from .utils import (
     asyncGZ,
 )
 from datetime import timedelta, datetime
-from .utils import MHD
 from io import BytesIO
 import xarray as xr
 import asyncio
@@ -23,7 +22,7 @@ from selenium.webdriver.chrome.options import Options
 __all__ = ["DSCOVR"]
 
 
-class DSCOVR(MHD):
+class DSCOVR:
     def __init__(
         self, download_path: str = "./data/DSCOVR", batch_size: int = 15
     ) -> None:
@@ -217,14 +216,7 @@ class DSCOVR(MHD):
         l1 = l1[(l1.index >= init) & (l1.index <= end)]
         l2 = l2[(l2.index >= init) & (l2.index <= end)]
 
-        return {
-            "l1": self.apply_features(
-                l1, "bt", "proton_density", "proton_speed", "proton_temperature"
-            ),
-            "l2": self.apply_features(
-                l2, "bt", "proton_density", "proton_speed", "proton_temperature"
-            ),
-        }
+        return l1, l2
 
     """Downloader pipeline"""
 
