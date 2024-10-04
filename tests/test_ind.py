@@ -2,12 +2,13 @@ from .input_data import scrap_date_list
 from typing import Tuple
 from starstream import *
 
+
 def runtime(object) -> None:
     obj = object()
     DataDownloading(obj, scrap_date_list)
     scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
     try:
-        obj.data_prep(scrap_date, timedelta(hours = 1))
+        obj.data_prep(scrap_date, timedelta(hours=1))
     except TypeError:
         obj.data_prep(scrap_date)
 
@@ -42,14 +43,14 @@ def test_omni() -> None:
 
 def test_goes() -> None:
     def object():
-        return GOES16("fe094", granularity=1/60, batch_size=15)
+        return GOES16("fe094", granularity=1 / 60, batch_size=15)
 
     runtime(object)
 
 
 def test_hinode() -> None:
     def object():
-        return Hinode.XRT(batch_size = 15)
+        return Hinode.XRT(batch_size=15)
 
     runtime(object)
 
@@ -100,6 +101,7 @@ def test_soho_costep_ephin() -> None:
 
 def test_wind() -> None:
     runtime(WIND.MAG)
+
 
 def test_aia_hr() -> None:
     runtime(SDO.EVE)

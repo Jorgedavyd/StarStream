@@ -333,20 +333,22 @@ class SDO:
             await self.batched_download(session)
 
     class EVE:
-        def __init__(self, download_path: str = "./data/SDO/EVE", batch_size: int = 256) -> None:
+        def __init__(
+            self, download_path: str = "./data/SDO/EVE", batch_size: int = 256
+        ) -> None:
             self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_008.fit.gz"
             )
-            self.eve_csv_path: Callable[[str], str] = (
-                lambda date: osp.join(download_path, f"{date}.csv")
+            self.eve_csv_path: Callable[[str], str] = lambda date: osp.join(
+                download_path, f"{date}.csv"
             )
 
-            self.eve_fits_gz_path: Callable[[str], str] = (
-                lambda date: osp.join(download_path, f"{date}.fits.gz")
+            self.eve_fits_gz_path: Callable[[str], str] = lambda date: osp.join(
+                download_path, f"{date}.fits.gz"
             )
-            self.eve_fits_path: Callable[[str], str] = (
-                lambda date: osp.join(download_path, f"{date}.fits")
+            self.eve_fits_path: Callable[[str], str] = lambda date: osp.join(
+                download_path, f"{date}.fits"
             )
             os.makedirs(download_path, exist_ok=True)
 
@@ -361,7 +363,8 @@ class SDO:
                     days=int(row["DOY"]) - 1,
                     seconds=int(row["SOD"]),
                     microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6),
-                ), axis = 1
+                ),
+                axis=1,
             )
 
             df[["CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"]].resample(
@@ -399,7 +402,9 @@ class SDO:
                 await file.write(fits_file)
 
         async def preprocessing(self) -> None:
-            await asyncio.gather(*[self.to_fits(date) for date in self.new_scrap_date_list])
+            await asyncio.gather(
+                *[self.to_fits(date) for date in self.new_scrap_date_list]
+            )
             for date in tqdm(self.new_scrap_date_list):
                 self.to_csv(date)
 
@@ -407,11 +412,14 @@ class SDO:
             url = self.url(day)
             async with session.get(url, ssl=False) as response:
                 data = await response.read()
-                async with aiofiles.open(self.eve_fits_gz_path(day), 'wb') as file:
+                async with aiofiles.open(self.eve_fits_gz_path(day), "wb") as file:
                     await file.write(data)
 
         def get_preprocessing_tasks(self, session) -> List[Coroutine]:
-            return [self.download_url(session, date) for date in self.new_scrap_date_list]
+            return [
+                self.download_url(session, date) for date in self.new_scrap_date_list
+            ]
+
         """prep pipeline"""
 
         def data_prep(

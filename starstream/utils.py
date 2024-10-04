@@ -190,6 +190,7 @@ def timedelta_to_freq(timedelta_obj: timedelta) -> str:
 
     return "".join(freq_parts) if freq_parts else "0s"
 
+
 async def downloader(scrap_date, sat_objs) -> None:
     async with aiohttp.ClientSession() as session:
         if isinstance(sat_objs, (list, tuple)):
@@ -212,6 +213,7 @@ def DataDownloading(
     else:
         for date in scrap_date:
             asyncio.run(downloader(date, sat_objs))
+
 
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="exp"

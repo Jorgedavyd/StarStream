@@ -155,7 +155,7 @@ class GOES16:
                 await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
     def data_prep(self, scrap_date: Tuple[datetime, datetime]) -> List[str]:
-        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
+        new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
         scrap_files: List[str] = []
 
         for date in new_scrap_date:

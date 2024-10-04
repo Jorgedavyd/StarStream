@@ -1,7 +1,12 @@
 from typing import Callable, Coroutine, List, Tuple
 from numpy._typing import NDArray
 from tqdm import tqdm
-from .utils import DataDownloading, datetime_interval, handle_client_connection_error, timedelta_to_freq
+from .utils import (
+    DataDownloading,
+    datetime_interval,
+    handle_client_connection_error,
+    timedelta_to_freq,
+)
 from astropy.io import fits
 from io import BytesIO
 import numpy as np
@@ -14,14 +19,16 @@ import pandas as pd
 
 __all__ = ["PROBA_2"]
 
+
 def min_to_datetime(data: NDArray, date: str) -> NDArray:
     def func(min: int) -> datetime:
-        first_date = datetime.strptime(date, '%Y%m%d')
+        first_date = datetime.strptime(date, "%Y%m%d")
         hours = min // 60
         mins = min % 60
         return datetime(first_date.year, first_date.month, first_date.day, hours, mins)
 
     return np.array([func(int(item.item())) for item in data])
+
 
 class PROBA_2:
     class LYRA:
@@ -77,9 +84,9 @@ class PROBA_2:
             async with aiofiles.open(self.lyra_fits_path(date), "rb") as f:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
-                    data = np.stack(hdul[1].data, axis = 0)
+                    data = np.stack(hdul[1].data, axis=0)
                     data[:, 1:] = data[:, 1:].astype(np.float32)
-                    data[:, 0] = min_to_datetime(data[:,0], date)
+                    data[:, 0] = min_to_datetime(data[:, 0], date)
                     print(data)
                     np.savetxt(
                         self.lyra_csv_path(date),
@@ -110,20 +117,25 @@ class PROBA_2:
                     await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
         def get_df(self, date: str):
-            return pd.read_csv(self.lyra_csv_path(date), parse_dates = True, index_col = 0)
+            return pd.read_csv(self.lyra_csv_path(date), parse_dates=True, index_col=0)
 
-        def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta) -> pd.DataFrame:
-            new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days = 1))
-            return pd.concat([self.get_df(date) for date in new_scrap_date])\
-                            .interpolate() \
-                            .resample(timedelta_to_freq(step_size)) \
-                            .mean()
+        def data_prep(
+            self, scrap_date: Tuple[datetime, datetime], step_size: timedelta
+        ) -> pd.DataFrame:
+            new_scrap_date: List[str] = datetime_interval(
+                *scrap_date, timedelta(days=1)
+            )
+            return (
+                pd.concat([self.get_df(date) for date in new_scrap_date])
+                .interpolate()
+                .resample(timedelta_to_freq(step_size))
+                .mean()
+            )
+
 
 def save_npy(file, array) -> None:
     np.savetxt(file, array, delimiter=",")
 
-if __name__ == '__main__':
-    DataDownloading(
-        PROBA_2.LYRA(),
-        (datetime(2020, 10, 10), datetime(2020, 10, 11))
-    )
+
+if __name__ == "__main__":
+    DataDownloading(PROBA_2.LYRA(), (datetime(2020, 10, 10), datetime(2020, 10, 11)))

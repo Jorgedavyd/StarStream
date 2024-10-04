@@ -167,7 +167,7 @@ class DSCOVR:
     def get_df(
         self, path: Callable[[str], str], date: str, obs: List[str]
     ) -> pd.DataFrame:
-        df = pd.read_csv(path(date), index_col=0, parse_dates = True)
+        df = pd.read_csv(path(date), index_col=0, parse_dates=True)
         return df[obs]
 
     def get_dfs(

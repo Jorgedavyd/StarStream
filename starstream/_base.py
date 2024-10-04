@@ -103,7 +103,7 @@ class CDAWeb:
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
     def get_df_unit(self, date: str) -> pd.DataFrame:
-        return pd.read_csv(self.csv_path(date), parse_dates = True, index_col = 0)
+        return pd.read_csv(self.csv_path(date), parse_dates=True, index_col=0)
 
     def get_df(self, scrap_date: Tuple[datetime, datetime]) -> pd.DataFrame:
         new_scrap_date: List[str] = datetime_interval(*scrap_date, timedelta(days=1))
