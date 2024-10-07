@@ -10,9 +10,12 @@ import zipfile
 import asyncio
 import tarfile
 import gzip
-from typing import Dict, Tuple, List, Any, Union
 from inspect import iscoroutinefunction
+from typing import Dict, Optional, Tuple, List, Any, Union
 import aiohttp
+from dataclasses import dataclass, field
+from itertools import chain
+
 
 __all__ = ["DataDownloading"]
 
@@ -116,21 +119,6 @@ async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     fits_file.close()
     return out
 
-
-def flare_hour_steps(
-    init_hour: datetime, last_hour: datetime, step_size: timedelta, int_seq_len: int
-):
-    assert step_size >= timedelta(minutes=2), "2 minutes is the highest resolution"
-    hours = []
-    current_hour = init_hour
-    while current_hour <= last_hour:
-        hours.extend(
-            [current_hour - step * step_size for step in range(int_seq_len, -1, -1)]
-        )
-        current_hour += timedelta(hours=1)
-    return [datetime.strftime(iters, "%Y%m%d-%H%M%S").split("-") for iters in hours]
-
-
 def datetime_interval(
     init: datetime,
     last: datetime,
@@ -142,29 +130,6 @@ def datetime_interval(
     while current_date <= last:
         date_list.append(current_date.strftime(output_format))
         current_date += step_size
-    return date_list
-
-
-def interval_time(
-    start_date_str,
-    end_date_str,
-    format="%Y%m%d",
-    step_size: timedelta = timedelta(days=1),
-    output_format=None,
-) -> List[str]:
-    if output_format is None:
-        output_format = format
-
-    start_date = datetime.strptime(start_date_str, format)
-    end_date = datetime.strptime(end_date_str, format)
-
-    current_date = start_date
-    date_list = []
-
-    while current_date <= end_date:
-        date_list.append(current_date.strftime(output_format))
-        current_date += step_size
-
     return date_list
 
 
@@ -190,30 +155,54 @@ def timedelta_to_freq(timedelta_obj: timedelta) -> str:
 
     return "".join(freq_parts) if freq_parts else "0s"
 
+@dataclass(frozen=True)
+class StarDate:
+    date: datetime
+    format: Optional[str] = field(default = None)
 
-async def downloader(scrap_date, sat_objs) -> None:
-    async with aiohttp.ClientSession() as session:
-        if isinstance(sat_objs, (list, tuple)):
-            await asyncio.gather(
-                *[
-                    sat_obj.downloader_pipeline(scrap_date, session)
-                    for sat_obj in sat_objs
-                ]
-            )
-        else:
-            await sat_objs.downloader_pipeline(scrap_date, session)
+    def str(self, format: Optional[str]) -> str:
+        if format is None:
+            assert (self.format is not None), "String format not defined"
+            return self.date.strftime(self.format)
+        return self.date.strftime(format)
 
+def interval_time(init: StarDate, end: StarDate, resolution: timedelta) -> List[StarDate]:
+    current_time = init.date
+    dates = []
+    while current_time < end.date:
+        dates.append(StarDate(current_time, init.format))
+        current_time += resolution
+    return dates
+
+@dataclass
+class StarInterval:
+    lower_boundary: StarDate
+    upper_boundary: StarDate
+    resolution: timedelta = field(default=timedelta(hours=1))
+
+    def __post_init__(self) -> None:
+        assert self.lower_boundary.format == self.upper_boundary.format, "Boundaries' format must be equal"
+        self.interval: List[StarDate] = interval_time(self.lower_boundary, self.upper_boundary, self.resolution)
+
+    def __iter__(self):
+        return iter(self.interval)
+
+def mega_interval(*args) -> List[StarDate]:
+    assert (isinstance(args[0], tuple)), "Not valid non-tuple argument"
+    return [*chain.from_iterable([StarInterval(*arg) for arg in args])]
 
 def DataDownloading(
     sat_objs: Union[List, Any],
     scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
 ) -> None:
-    if isinstance(scrap_date[0], datetime):
-        asyncio.run(downloader(scrap_date, sat_objs))
-    else:
-        for date in scrap_date:
-            asyncio.run(downloader(date, sat_objs))
+    asyncio.run(downloader(sat_objs, scrap_date))
 
+async def downloader(
+    sat_objs: Union[List, Any],
+    scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
+) -> None:
+    async with aiohttp.ClientSession() as session:
+        await asyncio.gather(*[satellite(scrap_date, session) for satellite in sat_objs])
 
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="exp"
