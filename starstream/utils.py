@@ -1,6 +1,8 @@
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import functools
+
+from numpy._typing import NDArray
 from aiohttp import ClientConnectionError
 from dateutil.relativedelta import relativedelta
 from astropy.io import fits
