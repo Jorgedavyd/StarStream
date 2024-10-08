@@ -1,8 +1,8 @@
 from typing import Callable, Coroutine, List, Optional, Tuple, Union
 from numpy._typing import NDArray
 from tqdm import tqdm
+from ._base import Satellite
 from .utils import (
-    Satellite,
     handle_client_connection_error,
     timedelta_to_freq,
 )

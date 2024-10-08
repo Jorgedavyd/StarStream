@@ -2,12 +2,11 @@ from datetime import timedelta
 from .input_data import scrap_date_list
 from starstream import *
 
-
 def test_fits() -> None:
     DataDownloading(
         [
             Hinode.XRT(batch_size=15),
-            PROBA_2.LYRA(sequence_length=timedelta(minutes=5)),
+            PROBA_2.LYRA(store_resolution=timedelta(minutes=5)),
             SDO.AIA_HR(step_size=timedelta(minutes=2), wavelength="171"),
         ],
         scrap_date_list,
