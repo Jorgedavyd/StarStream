@@ -26,6 +26,7 @@ from torch import Tensor
 
 __all__ = ["DataDownloading"]
 
+
 ## Asynchronous processing
 async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
     cdf_file = await asyncio.get_event_loop().run_in_executor(None, pycdf.CDF, cdf_path)
@@ -35,6 +36,7 @@ async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
         out = processing(cdf_file, *args)
     cdf_file.close()
     return out
+
 
 async def asyncZIP(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     zip_file = await asyncio.get_event_loop().run_in_executor(
@@ -47,6 +49,7 @@ async def asyncZIP(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     zip_file.close()
     return out
 
+
 async def asyncGZ(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     if iscoroutinefunction(processing):
@@ -56,13 +59,16 @@ async def asyncGZ(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     gz_file.close()
     return out
 
+
 async def asyncGZFITS(bytes_obj: BytesIO, processing, *args) -> None:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     await asyncFITS(BytesIO(gz_file.read()), processing, *args)
     gz_file.close()
 
+
 def syncGZ(file_obj: BytesIO):
     return gzip.GzipFile(fileobj=file_obj)
+
 
 async def asyncTAR(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     tar_file = await asyncio.get_event_loop().run_in_executor(None, syncTAR, bytes_obj)
@@ -73,8 +79,10 @@ async def asyncTAR(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     tar_file.close()
     return out
 
+
 def syncTAR(file_obj: BytesIO):
     return tarfile.open(fileobj=file_obj, mode="r")
+
 
 async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     fits_file = await asyncio.get_event_loop().run_in_executor(
@@ -86,6 +94,7 @@ async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
         out = processing(fits_file, *args)
     fits_file.close()
     return out
+
 
 ## Datetime manipulation
 def timedelta_to_freq(timedelta_obj: timedelta) -> str:
@@ -110,31 +119,36 @@ def timedelta_to_freq(timedelta_obj: timedelta) -> str:
 
     return "".join(freq_parts) if freq_parts else "0s"
 
+
 def to_polars(obj: datetime):
     return pl.datetime(
-        year = obj.year,
-        month = obj.month,
-        day = obj.day,
-        hour = obj.hour,
-        minute = obj.minute,
-        second = obj.second
+        year=obj.year,
+        month=obj.month,
+        day=obj.day,
+        hour=obj.hour,
+        minute=obj.minute,
+        second=obj.second,
     )
+
 
 @dataclass(frozen=True)
 class StarDate:
     date: datetime
-    format: Optional[str] = field(default = None)
+    format: Optional[str] = field(default=None)
 
     def str(self, format: Optional[str] = None) -> str:
         if format is None:
-            assert (self.format is not None), "String format not defined"
+            assert self.format is not None, "String format not defined"
             return self.date.strftime(self.format)
         return self.date.strftime(format)
 
     def polars(self):
         return to_polars(self.date)
 
-def interval_time(init: StarDate, end: StarDate, resolution: Union[timedelta, relativedelta]) -> List[StarDate]:
+
+def interval_time(
+    init: StarDate, end: StarDate, resolution: Union[timedelta, relativedelta]
+) -> List[StarDate]:
     current_time = init.date
     dates = []
     while current_time < end.date:
@@ -142,24 +156,32 @@ def interval_time(init: StarDate, end: StarDate, resolution: Union[timedelta, re
         current_time += resolution
     return dates
 
+
 @dataclass
 class StarInterval:
     scrap_date_list: List[Tuple[datetime, datetime]]
     resolution: Union[timedelta, relativedelta] = field(default=timedelta(days=1))
-    format: str = field(default = '%Y%m%d')
+    format: str = field(default="%Y%m%d")
 
     def __post_init__(self) -> None:
         self.interval: List[StarDate] = []
         for init, end in self.scrap_date_list:
-            self.interval.extend(interval_time(StarDate(init, self.format), StarDate(end, self.format), self.resolution))
+            self.interval.extend(
+                interval_time(
+                    StarDate(init, self.format),
+                    StarDate(end, self.format),
+                    self.resolution,
+                )
+            )
 
     def __iter__(self):
         return iter(self.interval)
 
 
 def mega_interval(*args) -> List[StarDate]:
-    assert (isinstance(args[0], tuple)), "Not valid non-tuple argument"
+    assert isinstance(args[0], tuple), "Not valid non-tuple argument"
     return [*chain.from_iterable([StarInterval(*arg) for arg in args])]
+
 
 def DataDownloading(
     sat_objs: Union[List, Any],
@@ -167,12 +189,16 @@ def DataDownloading(
 ) -> None:
     asyncio.run(downloader(sat_objs, scrap_date))
 
+
 async def downloader(
     sat_objs: Union[List, Any],
     scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
 ) -> None:
     async with aiohttp.ClientSession() as session:
-        await asyncio.gather(*[satellite(scrap_date, session) for satellite in sat_objs])
+        await asyncio.gather(
+            *[satellite(scrap_date, session) for satellite in sat_objs]
+        )
+
 
 ## Decorator for connection error
 def handle_client_connection_error(
@@ -207,6 +233,7 @@ def handle_client_connection_error(
 
     return decorator
 
+
 class StarImage:
     @staticmethod
     def process_image(content: bytes):
@@ -215,7 +242,7 @@ class StarImage:
 
     @staticmethod
     async def load_npy_from_png(path: str):
-        async with aiofiles.open(path, mode='rb') as file:
+        async with aiofiles.open(path, mode="rb") as file:
             content = await file.read()
 
         loop = asyncio.get_running_loop()
@@ -227,8 +254,10 @@ class StarImage:
     @staticmethod
     async def get_numpy(paths: List[str]) -> NDArray:
         return np.stack(
-            await asyncio.gather(*[StarImage.load_npy_from_png(path) for path in paths]),
-            axis = 0
+            await asyncio.gather(
+                *[StarImage.load_npy_from_png(path) for path in paths]
+            ),
+            axis=0,
         )
 
     @staticmethod

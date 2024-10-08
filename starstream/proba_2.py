@@ -34,7 +34,7 @@ class PROBA_2:
             self,
             download_path: str = "./data/LYRA",
             batch_size: int = 10,
-            store_resolution: Optional[timedelta] = None
+            store_resolution: Optional[timedelta] = None,
         ):
             if store_resolution is not None:
                 self.resolution = timedelta_to_freq(store_resolution)
@@ -84,7 +84,13 @@ class PROBA_2:
                     )
             os.remove(self.fits_path(date))
 
-        async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+        async def fetch(
+            self,
+            scrap_date: Union[
+                List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
+            ],
+            session,
+        ) -> None:
             if isinstance(scrap_date[0], datetime):
                 self._check_tasks([scrap_date])
             else:

@@ -34,8 +34,13 @@ def date_to_day_of_year(date_string):
     day_of_year_string = f"{day_of_year:03d}"
     return date_string[:4] + day_of_year_string
 
+
 class Base(Satellite):
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+    async def fetch(
+        self,
+        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
+        session,
+    ):
         if isinstance(scrap_date[0], datetime):
             self.check_tasks([scrap_date])
         else:
@@ -64,9 +69,7 @@ class Base(Satellite):
             )
 
         params = [i for i in params if i is not None]
-        for i in tqdm(
-            range(0, len(params), self.batch_size), desc="Getting images..."
-        ):
+        for i in tqdm(range(0, len(params), self.batch_size), desc="Getting images..."):
             await asyncio.gather(
                 *[
                     self.download_from_name(name, client)
@@ -81,7 +84,6 @@ class Base(Satellite):
     def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
         paths: List[str] = self._path_prep(scrap_date)
         return asyncio.run(StarImage.get_torch(paths))
-
 
 
 class SDO:
@@ -138,7 +140,9 @@ class SDO:
         def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             new_scrap_date: StarInterval = StarInterval(scrap_date)
             for date in new_scrap_date:
-                if len(glob.glob(self.scrap_path(date.str()))) < ((timedelta(days=1) / self.step_size) - 1):
+                if len(glob.glob(self.scrap_path(date.str()))) < (
+                    (timedelta(days=1) / self.step_size) - 1
+                ):
                     self.new_scrap_date_list.append(date)
 
         async def get_names(self, html):
@@ -286,7 +290,12 @@ class SDO:
             ]
 
     class EVE(Satellite):
-        def __init__(self, download_path: str = "./data/SDO/EVE", batch_size: int = 10, store_resolution: Optional[timedelta] = None) -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/SDO/EVE",
+            batch_size: int = 10,
+            store_resolution: Optional[timedelta] = None,
+        ) -> None:
             if store_resolution is not None:
                 self.resolution = timedelta_to_freq(store_resolution)
             self.batch_size: int = batch_size
@@ -310,32 +319,35 @@ class SDO:
             with fits.open(path) as hdul:
                 df: pl.DataFrame = pl.DataFrame(hdul[1].data)
 
-            df = df.with_columns([
-                pl.struct(["YEAR", "DOY", "SOD"]).apply(
-                    lambda row: pl.datetime(
-                        year=int(row["YEAR"]),
-                        month=1,
-                        day=1
-                    ) + pl.duration(
-                        days=int(row["DOY"]) - 1,
-                        seconds=int(row["SOD"]),
-                        microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6)
+            df = df.with_columns(
+                [
+                    pl.struct(["YEAR", "DOY", "SOD"])
+                    .apply(
+                        lambda row: pl.datetime(year=int(row["YEAR"]), month=1, day=1)
+                        + pl.duration(
+                            days=int(row["DOY"]) - 1,
+                            seconds=int(row["SOD"]),
+                            microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6),
+                        )
                     )
-                ).alias("datetime")
-            ])
+                    .alias("datetime")
+                ]
+            )
 
             df = df.select(["datetime", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
             df = df.set_sorted("datetime")
 
-            if getattr(self, 'resolution') is not None:
-                df = df.groupby_dynamic("datetime", every="1m").agg([
-                    pl.col("CH_18").mean(),
-                    pl.col("CH_26").mean(),
-                    pl.col("CH_30").mean(),
-                    pl.col("Q_1").mean(),
-                    pl.col("Q_2").mean(),
-                    pl.col("Q_3").mean()
-                ])
+            if getattr(self, "resolution") is not None:
+                df = df.groupby_dynamic("datetime", every="1m").agg(
+                    [
+                        pl.col("CH_18").mean(),
+                        pl.col("CH_26").mean(),
+                        pl.col("CH_30").mean(),
+                        pl.col("Q_1").mean(),
+                        pl.col("Q_2").mean(),
+                        pl.col("Q_3").mean(),
+                    ]
+                )
 
             df.write_csv(self.eve_csv_path(date))
             os.remove(self.eve_fits_path(date))
@@ -368,7 +380,10 @@ class SDO:
             await asyncio.gather(
                 *[self.to_fits(date.str()) for date in self.new_scrap_date_list]
             )
-            for date in tqdm(self.new_scrap_date_list, desc = f'{self.__class__.__name__}: Preprocessing...'):
+            for date in tqdm(
+                self.new_scrap_date_list,
+                desc=f"{self.__class__.__name__}: Preprocessing...",
+            ):
                 self.to_csv(date.str())
 
         async def download_url(self, session, day: str) -> None:
@@ -379,9 +394,18 @@ class SDO:
                     await file.write(data)
 
         def get_preprocessing_tasks(self, session) -> List[Coroutine]:
-            return [self.download_url(session, date.str()) for date in self.new_scrap_date_list]
+            return [
+                self.download_url(session, date.str())
+                for date in self.new_scrap_date_list
+            ]
 
-        async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+        async def fetch(
+            self,
+            scrap_date: Union[
+                List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
+            ],
+            session,
+        ):
             if isinstance(scrap_date[0], datetime):
                 self._check_tasks([scrap_date])
             else:

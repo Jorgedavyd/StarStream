@@ -94,8 +94,9 @@ class STEREO_A:
 
                         names = [
                             name["href"]
-                            for name in
-                            soup.find_all("a", href=lambda key: key.endswith("R.png"))
+                            for name in soup.find_all(
+                                "a", href=lambda key: key.endswith("R.png")
+                            )
                             if name is not None
                         ]
 
@@ -127,13 +128,19 @@ class STEREO_A:
 
             def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
                 new_scrap_date: StarInterval = StarInterval(
-                    scrap_date,
-                    timedelta(days = 1)
+                    scrap_date, timedelta(days=1)
                 )
 
                 for date in new_scrap_date:
                     for wavelength in self.wavelength:
-                        if len(glob.glob(self.root_path_png_scrap(date.str(), wavelength))) == 0:
+                        if (
+                            len(
+                                glob.glob(
+                                    self.root_path_png_scrap(date.str(), wavelength)
+                                )
+                            )
+                            == 0
+                        ):
                             self.new_scrap_date_list.append(date)
 
             def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
@@ -144,21 +151,32 @@ class STEREO_A:
                 paths: List[str] = self._path_prep(scrap_date)
                 return asyncio.run(StarImage.get_torch(paths))
 
-            def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+            def _path_prep(
+                self, scrap_date: List[Tuple[datetime, datetime]]
+            ) -> List[str]:
                 new_scrap_date: StarInterval = StarInterval(
-                    scrap_date,
-                    timedelta(days = 1)
+                    scrap_date, timedelta(days=1)
                 )
                 out = []
                 for date in new_scrap_date:
                     for wavelength in self.wavelength:
-                        out.extend(glob.glob(self.root_path_png_scrap(date.str(), wavelength)))
+                        out.extend(
+                            glob.glob(self.root_path_png_scrap(date.str(), wavelength))
+                        )
                 return out
 
-            def _get_download_tasks(self, session, name_list: List[str]) -> List[Coroutine]:
+            def _get_download_tasks(
+                self, session, name_list: List[str]
+            ) -> List[Coroutine]:
                 return [self.download_url(session, name) for name in name_list]
 
-            async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+            async def fetch(
+                self,
+                scrap_date: Union[
+                    List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
+                ],
+                session,
+            ) -> None:
                 if isinstance(scrap_date[0], datetime):
                     self.check_tasks([scrap_date])
                 else:

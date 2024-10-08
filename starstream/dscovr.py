@@ -20,9 +20,13 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import chromedriver_binary
 import aiofiles
+
 __all__ = ["DSCOVR"]
 
-__path_func: Callable[[str, str, str, str], str] = lambda root, arg1, arg2, date: osp.join(root, arg1, arg2, f"{date}.csv")
+__path_func: Callable[[str, str, str, str], str] = (
+    lambda root, arg1, arg2, date: osp.join(root, arg1, arg2, f"{date}.csv")
+)
+
 
 @dataclass
 class __Base(Satellite):
@@ -34,7 +38,7 @@ class __Base(Satellite):
     achronym: str
 
     def __post_init__(self) -> None:
-        assert (self.level == 'l2' or self.level == 'l1'), "Not valid data product level"
+        assert self.level == "l2" or self.level == "l1", "Not valid data product level"
 
     @staticmethod
     def _to_unix(scrap_date: Tuple[datetime, datetime]) -> List[int]:
@@ -48,7 +52,7 @@ class __Base(Satellite):
         update_path: str = osp.join(osp.dirname(__file__), f"trivials/update.txt")
         scrap_date = sorted(
             scrap_date,
-            key = lambda key: key[-1],
+            key=lambda key: key[-1],
         )
         try:
             async with aiofiles.open(update_path, "r") as file:
@@ -59,7 +63,9 @@ class __Base(Satellite):
                     self._scrap_links((date + timedelta(days=1), scrap_date[-1][-1]))
         except FileNotFoundError:
             os.makedirs(osp.dirname(update_path), exist_ok=True)
-            self._scrap_links((datetime(2016, 7, 26), datetime.today() - timedelta(days=1)))
+            self._scrap_links(
+                (datetime(2016, 7, 26), datetime.today() - timedelta(days=1))
+            )
 
     def _scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
         print("Updating url dataset...")
@@ -83,15 +89,19 @@ class __Base(Satellite):
         with open(update_path, "x") as file:
             file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-    async def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]) -> None:
+    async def _check_tasks(
+        self, scrap_date_list: List[Tuple[datetime, datetime]]
+    ) -> None:
         await self._check_update(scrap_date_list)
         new_scrap_date: StarInterval = StarInterval(
-            scrap_date_list,
-            timedelta(days=1),
-            '%Y%m%d'
+            scrap_date_list, timedelta(days=1), "%Y%m%d"
         )
 
-        self.new_scrap_date_list = [date for date in new_scrap_date if not os.path.exists(self.csv_path(date.str()))]
+        self.new_scrap_date_list = [
+            date
+            for date in new_scrap_date
+            if not os.path.exists(self.csv_path(date.str()))
+        ]
 
     def _gz_processing(self, gz_file, date: str) -> None:
         dataset = xr.open_dataset(gz_file.read())
@@ -118,10 +128,12 @@ class __Base(Satellite):
                 await asyncGZ(BytesIO(data), self._gz_processing, url, date)
 
     async def _get_urls(self) -> List[str]:
-        async with aiofiles.open(osp.join(osp.dirname(__file__), "trivials/url.txt"), "r") as file:
+        async with aiofiles.open(
+            osp.join(osp.dirname(__file__), "trivials/url.txt"), "r"
+        ) as file:
             lines = await file.readlines()
         url_list = []
-        for url in tqdm(lines, desc = f"{self.__class__.__name__}: Getting the URLs..."):
+        for url in tqdm(lines, desc=f"{self.__class__.__name__}: Getting the URLs..."):
             for date in self.new_scrap_date_list:
                 if date + "000000" in url and self.achronym in url:
                     url_list.append((url, date))
@@ -131,7 +143,11 @@ class __Base(Satellite):
         urls_dates = asyncio.run(self._get_urls())
         return [self._download_url(url, date, session) for url, date in urls_dates]
 
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+    async def fetch(
+        self,
+        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
+        session,
+    ) -> None:
         if isinstance(scrap_date[0], datetime):
             await self._check_tasks([scrap_date])
         else:
@@ -150,23 +166,37 @@ class __Base(Satellite):
 
 class DSCOVR:
     class FaradayCup(__Base):
-        def __init__(self, download_path: str = "./data/DSCOVR", batch_size: int = 15, level: str = 'l1') -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/DSCOVR",
+            batch_size: int = 15,
+            level: str = "l1",
+        ) -> None:
             super().__init__(
-                batch_size = batch_size,
-                root = download_path,
-                level = level,
-                csv_path = lambda date: __path_func(download_path, "faraday", level, date),
-                var = ["proton_density", "proton_speed", "proton_temperature"],
-                achronym = 'fc1' if level == 'l1' else 'fm1'
+                batch_size=batch_size,
+                root=download_path,
+                level=level,
+                csv_path=lambda date: __path_func(
+                    download_path, "faraday", level, date
+                ),
+                var=["proton_density", "proton_speed", "proton_temperature"],
+                achronym="fc1" if level == "l1" else "fm1",
             )
 
     class Magnetometer(__Base):
-        def __init__(self, download_path: str = "./data/DSCOVR", batch_size: int = 15, level: str = 'l1') -> None:
+        def __init__(
+            self,
+            download_path: str = "./data/DSCOVR",
+            batch_size: int = 15,
+            level: str = "l1",
+        ) -> None:
             super().__init__(
-                batch_size = batch_size,
-                root = download_path,
-                level = level,
-                csv_path = lambda date: __path_func(download_path, level, "magnetometer", date),
-                var = ["bx_gsm", "by_gsm", "bz_gsm", "bt"],
-                achronym='mg1' if level == 'l1' else 'm1m'
+                batch_size=batch_size,
+                root=download_path,
+                level=level,
+                csv_path=lambda date: __path_func(
+                    download_path, level, "magnetometer", date
+                ),
+                var=["bx_gsm", "by_gsm", "bz_gsm", "bt"],
+                achronym="mg1" if level == "l1" else "m1m",
             )

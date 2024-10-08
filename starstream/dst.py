@@ -1,5 +1,10 @@
 from starstream._base import Satellite
-from .utils import StarInterval, datetime_interval, handle_client_connection_error, timedelta_to_freq
+from .utils import (
+    StarInterval,
+    datetime_interval,
+    handle_client_connection_error,
+    timedelta_to_freq,
+)
 from typing import Callable, Coroutine, List, Tuple, Union
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
@@ -13,8 +18,10 @@ import os
 
 __all__ = ["Dst"]
 
+
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
+
 
 class Dst(Satellite):
     def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
@@ -40,11 +47,11 @@ class Dst(Satellite):
 
     def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
         new_scrap_date: StarInterval = StarInterval(
-            scrap_date,
-            relativedelta(months = 1),
-            '%Y%m'
+            scrap_date, relativedelta(months=1), "%Y%m"
         )
-        history: List[str] = [os.path.join(self.root, filename) for filename in os.listdir(self.root)]
+        history: List[str] = [
+            os.path.join(self.root, filename) for filename in os.listdir(self.root)
+        ]
 
         for month in new_scrap_date:
             if self.csv_path(month.str()) not in history:
@@ -68,7 +75,11 @@ class Dst(Satellite):
                 for line in out_list:
                     await f.write(line + ",\n")
 
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]],Tuple[datetime, datetime]], session):
+    async def fetch(
+        self,
+        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
+        session,
+    ):
         if isinstance(scrap_date[0], datetime):
             self._check_tasks([scrap_date])
         else:
@@ -83,7 +94,7 @@ class Dst(Satellite):
     def _get_df_unit(self, date: str) -> pl.Series:
         df = pl.read_csv(self.csv_path(date)).get_column("dst_index")
         start_date = datetime(int(date[:4]), int(date[4:6]), 1)
-        end_date = start_date + relativedelta(months=1) - timedelta(hours=1) ## todo
+        end_date = start_date + relativedelta(months=1) - timedelta(hours=1)  ## todo
         full_range = pl.date_range(start=start_date, end=end_date, freq="1h")
         df.index = full_range
         return df

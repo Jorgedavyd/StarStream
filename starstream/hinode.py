@@ -42,18 +42,25 @@ class Hinode:
 
         def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             print(f"{self.__class__.__name__}: Looking for missing data...")
-            new_scrap_date: StarInterval = StarInterval(scrap_date, timedelta(minutes = 1), '%Y%m%d-%H%M')
+            new_scrap_date: StarInterval = StarInterval(
+                scrap_date, timedelta(minutes=1), "%Y%m%d-%H%M"
+            )
             for date in new_scrap_date:
                 if len(glob.glob(self.path(f'{date.str().split("-")[0]}*'))) == 0:
                     self.new_scrap_date_list.append(date)
 
         def get_scrap_tasks(self, session) -> List[Coroutine]:
-            return [self.scrap_names(session, *date.str().split("-")) for date in self.new_scrap_date_list]
+            return [
+                self.scrap_names(session, *date.str().split("-"))
+                for date in self.new_scrap_date_list
+            ]
 
         @handle_client_connection_error(
             max_retries=3, increment="exp", default_cooldown=5
         )
-        async def scrap_names(self, session, date: str, hour: str) -> Union[List[str], None]:
+        async def scrap_names(
+            self, session, date: str, hour: str
+        ) -> Union[List[str], None]:
             url: str = self.url(date, hour)
             async with session.get(url, ssl=False) as response:
                 if response.status != 200:

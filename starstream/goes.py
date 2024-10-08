@@ -15,10 +15,19 @@ import os
 
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
 
+
 class GOES16(Satellite):
-    def __init__(self, instrument: str, path: str = "./data/GOES16/", granularity: float = 1.0, batch_size: int = 10) -> None:
-        assert (0 <= granularity <= 1), "Not valid granularity, must be < |1|"
-        assert (instrument in VALID_INSTRUMENTS), f"Not valid instrument: {instrument}, must be {VALID_INSTRUMENTS}"
+    def __init__(
+        self,
+        instrument: str,
+        path: str = "./data/GOES16/",
+        granularity: float = 1.0,
+        batch_size: int = 10,
+    ) -> None:
+        assert 0 <= granularity <= 1, "Not valid granularity, must be < |1|"
+        assert (
+            instrument in VALID_INSTRUMENTS
+        ), f"Not valid instrument: {instrument}, must be {VALID_INSTRUMENTS}"
         self.batch_size: int = batch_size
         self.root: str = path
         instrument = f"suvi-l1b-{instrument}"
@@ -33,14 +42,16 @@ class GOES16(Satellite):
     def _check_data(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
         new_scrap_date: StarInterval = StarInterval(
             scrap_date,
-            timedelta(days = 1),
+            timedelta(days=1),
         )
         for date in new_scrap_date:
             if len(glob.glob(self.path(date.str() + "*"))) == 0:
                 self.new_scrap_date_list.append(date)
 
     def get_scrap_tasks(self, session) -> List[Coroutine]:
-        return [self.scrap_url(session, date.str()) for date in self.new_scrap_date_list]
+        return [
+            self.scrap_url(session, date.str()) for date in self.new_scrap_date_list
+        ]
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
     async def scrap_url(self, session, date: str) -> List[Tuple[str, str]] | None:
@@ -140,11 +151,10 @@ class GOES16(Satellite):
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
-
     def get(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         new_scrap_date: StarInterval = StarInterval(
             scrap_date,
-            timedelta(days = 1),
+            timedelta(days=1),
         )
 
         scrap_files: List[str] = []

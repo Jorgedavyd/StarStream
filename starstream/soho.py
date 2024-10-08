@@ -80,8 +80,8 @@ class SOHO:
             )
 
     class COSTEP_EPHIN(Satellite):
-        date_sampling: Union[timedelta, relativedelta] = relativedelta(years = 1)
-        format: str = '%Y'
+        date_sampling: Union[timedelta, relativedelta] = relativedelta(years=1)
+        format: str = "%Y"
 
         def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN") -> None:
             super().__init__()
@@ -112,7 +112,13 @@ class SOHO:
                 "int_h41",
             ]
 
-        async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+        async def fetch(
+            self,
+            scrap_date: Union[
+                List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
+            ],
+            session,
+        ):
             if isinstance(scrap_date[0], datetime):
                 self._check_tasks([scrap_date])
             else:
@@ -128,7 +134,10 @@ class SOHO:
             if self.downloaded:
                 pass
             else:
-                self.new_scrap_date_list = [date for date in StarInterval(scrap_date, relativedelta(years = 1), '%Y')]
+                self.new_scrap_date_list = [
+                    date
+                    for date in StarInterval(scrap_date, relativedelta(years=1), "%Y")
+                ]
 
         @handle_client_connection_error(
             max_retries=5, default_cooldown=5, increment="exp"
@@ -166,13 +175,15 @@ class SOHO:
             df = pl.read_csv(year_path[:-3] + "csv")
             df = df.with_columns(
                 pl.struct(["year", "month", "day", "hour", "minute"])
-                .apply(lambda x: pl.datetime(
-                    year=x["year"],
-                    month=x["month"],
-                    day=x["day"],
-                    hour=x["hour"],
-                    minute=x["minute"]
-                ))
+                .apply(
+                    lambda x: pl.datetime(
+                        year=x["year"],
+                        month=x["month"],
+                        day=x["day"],
+                        hour=x["hour"],
+                        minute=x["minute"],
+                    )
+                )
                 .alias("datetime")
             )
             df = df.drop(["year", "month", "day", "hour", "minute"])
