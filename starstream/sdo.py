@@ -1,16 +1,13 @@
 from astropy.io import fits
 from pandas.io.common import gzip
 from .utils import (
-    DataDownloading,
-    datetime_interval,
+    StarDate,
     timedelta_to_freq,
-    asyncGZFITS,
     handle_client_connection_error,
 )
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
-from io import BytesIO
 from tqdm import tqdm
 import pandas as pd
 import aiofiles
@@ -85,8 +82,9 @@ class SDO:
             )
             os.makedirs(self.jp2_path(""), exist_ok=True)
 
-        def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        def check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
             print(f"{self.__class__.__name__}: Looking for missing dates...")
+            ### mirar
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -176,7 +174,7 @@ class SDO:
                     ]
                 )
 
-        def data_prep(self, scrap_date: tuple[datetime, datetime]):
+        def data_prep(self, scrap_date: tuple[StarDate, StarDate]):
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -187,7 +185,7 @@ class SDO:
             ]
 
         async def downloader_pipeline(
-            self, scrap_date: Tuple[datetime, datetime], session
+            self, scrap_date: Tuple[StarDate, StarDate], session
         ):
             self.check_tasks(scrap_date)
             await self.batched_download(session)
@@ -232,7 +230,7 @@ class SDO:
             )
             os.makedirs(self.jpg_path(""), exist_ok=True)
 
-        def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        def check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
             print(
                 f"{self.__class__.__name__}: Looking for the links of missing dates..."
             )
@@ -318,7 +316,7 @@ class SDO:
                     ]
                 )
 
-        def data_prep(self, scrap_date: Tuple[datetime, datetime]) -> List[str]:
+        def data_prep(self, scrap_date: Tuple[StarDate, StarDate]) -> List[str]:
             new_scrap_date = datetime_interval(*scrap_date, timedelta(days=1))
             return [
                 *chain.from_iterable(
@@ -327,7 +325,7 @@ class SDO:
             ]
 
         async def downloader_pipeline(
-            self, scrap_date: tuple[datetime, datetime], session
+            self, scrap_date: tuple[StarDate, StarDate], session
         ):
             self.check_tasks(scrap_date)
             await self.batched_download(session)
@@ -373,7 +371,7 @@ class SDO:
 
             os.remove(self.eve_fits_path(date))
 
-        def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        def get_check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
             new_scrap_date: List[str] = datetime_interval(
                 *scrap_date, timedelta(days=1)
             )
@@ -423,7 +421,7 @@ class SDO:
         """prep pipeline"""
 
         def data_prep(
-            self, scrap_date: Tuple[datetime, datetime], step_size
+            self, scrap_date: Tuple[StarDate, StarDate], step_size
         ) -> pd.DataFrame:
             init, end = scrap_date
             new_scrap_date = datetime_interval(init, end, step_size)
@@ -436,7 +434,7 @@ class SDO:
             )
 
         async def downloader_pipeline(
-            self, scrap_date: Tuple[datetime, datetime], session
+            self, scrap_date: Tuple[StarDate, StarDate], session
         ):
             self.get_check_tasks(scrap_date)
             await self.download_task(session)

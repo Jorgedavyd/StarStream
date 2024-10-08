@@ -1,10 +1,11 @@
 from collections.abc import Callable
-from typing import List, Tuple
-from .utils import datetime_interval, asyncTAR, handle_client_connection_error
+from typing import List, Tuple, Union
+from dateutil.relativedelta import relativedelta
+from .utils import StarInterval, asyncTAR, handle_client_connection_error
 from datetime import timedelta, datetime
-from ._base import CDAWeb
+from ._base import CDAWeb, Satellite
 from io import BytesIO
-import pandas as pd
+import polars as pl
 import aiofiles
 import asyncio
 import glob
@@ -78,7 +79,10 @@ class SOHO:
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
 
-    class COSTEP_EPHIN:
+    class COSTEP_EPHIN(Satellite):
+        date_sampling: Union[timedelta, relativedelta] = relativedelta(years = 1)
+        format: str = '%Y'
+
         def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN") -> None:
             super().__init__()
             self.csv_path: Callable[[str], str] = lambda date: osp.join(
@@ -108,21 +112,21 @@ class SOHO:
                 "int_h41",
             ]
 
-        async def downloader_pipeline(
-            self, scrap_date: Tuple[datetime, datetime], session
+        async def fetch(
+            self, scrap_date: List[Tuple[datetime, datetime]], session
         ):
-            self.check_if_downloaded(scrap_date)
+            self._check_tasks(scrap_date)
             if self.new_scrap_date_list is None:
                 print("Dataset downloaded")
             else:
                 await self.download_url(session)
 
-        def check_if_downloaded(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             self.downloaded = len(glob.glob(self.root + "/*")) == 30
             if self.downloaded:
                 pass
             else:
-                self.new_scrap_date_list = scrap_date
+                self.new_scrap_date_list = [date for date in StarInterval(scrap_date, relativedelta(years = 1), '%Y')]
 
         @handle_client_connection_error(
             max_retries=5, default_cooldown=5, increment="exp"
@@ -135,7 +139,7 @@ class SOHO:
                     await asyncTAR(BytesIO(data), self.get_processing, self.root)
                     await asyncio.gather(*self.get_preprocessing_tasks())
 
-        def get_processing(self, tar_file, root):
+        def get_processing(self, tar_file, root: str):
             tar_file.extractall(root)
 
         def get_preprocessing_tasks(self):
@@ -144,7 +148,7 @@ class SOHO:
                 for year_path in glob.glob(self.root + "/5min/*")
             ]
 
-        async def preprocessing(self, year_path):
+        async def preprocessing(self, year_path: str):
             async with aiofiles.open(
                 year_path[:-3] + "csv", "w"
             ) as csv_file, aiofiles.open(year_path, "r") as l3i:
@@ -157,47 +161,19 @@ class SOHO:
                     )
 
             os.remove(year_path)
-            df = pd.read_csv(year_path[:-3] + "csv")
-            df["datetime"] = pd.to_datetime(
-                df[["year", "month", "day", "hour", "minute"]]
+            df = pl.read_csv(year_path[:-3] + "csv")
+            df = df.with_columns(
+                pl.struct(["year", "month", "day", "hour", "minute"])
+                .apply(lambda x: pl.datetime(
+                    year=x["year"],
+                    month=x["month"],
+                    day=x["day"],
+                    hour=x["hour"],
+                    minute=x["minute"]
+                ))
+                .alias("datetime")
             )
-            df = df.drop(["year", "month", "day", "hour", "minute"], axis=1)
-            df.set_index("datetime", inplace=True, drop=True)
-            df.resample("1min").mean().to_csv(year_path[:-3] + "csv")
-
-        def sync_read_csv(self, path: str):
-            return pd.read_csv(
-                path,
-                index_col=0,
-                parse_dates=True,
-            )
-
-        async def get_df(self, year):
-            df = await asyncio.get_event_loop().run_in_executor(
-                None,
-                self.sync_read_csv,
-                self.csv_path(year),
-            )
-            return pd.from_pandas(df)
-
-        async def data_prep(
-            self, scrap_date: tuple[datetime, datetime], step_size: timedelta
-        ):
-            init_date = pd.to_datetime(scrap_date[0])
-            last_date = pd.to_datetime(scrap_date[-1])
-            years = sorted(
-                list(
-                    set(
-                        [
-                            date[:4]
-                            for date in datetime_interval(
-                                scrap_date[0], scrap_date[-1], timedelta(days=1)
-                            )
-                        ]
-                    )
-                )
-            )
-            df = pd.concat(
-                await asyncio.gather(*[self.get_df(year) for year in years])
-            ).interpolate()
-            return df[(df.index >= init_date) & (df.index <= last_date)]
+            df = df.drop(["year", "month", "day", "hour", "minute"])
+            df = df.set_sorted("datetime")
+            df = df.groupby_dynamic("datetime", every="1m").agg(pl.all().mean())
+            df.write_csv(year_path[:-3] + "csv")

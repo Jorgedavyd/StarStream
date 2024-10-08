@@ -1,10 +1,11 @@
-from .utils import datetime_interval, handle_client_connection_error, timedelta_to_freq
+from starstream._base import Satellite
+from .utils import StarInterval, datetime_interval, handle_client_connection_error, timedelta_to_freq
 from typing import Callable, Coroutine, List, Tuple
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 import os.path as osp
 from tqdm import tqdm
-import pandas as pd
+import polar as pl
 import aiofiles
 import asyncio
 import asyncio
@@ -12,12 +13,10 @@ import os
 
 __all__ = ["Dst"]
 
-
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
 
-
-class Dst:
+class Dst(Satellite):
     def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
         self.batch_size: int = batch_size
         self.root: str = download_path
@@ -39,27 +38,17 @@ class Dst:
         else:
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_final/{month}/dst{month[2:]}.for.request"
 
-    """
-    Downloader process
-    """
-
-    def get_check_tasks(self, scrap_date: Tuple[datetime, datetime]):
-        print(f"{self.__class__.__name__}: Looking for missing data...")
-        new_scrap_date: List[str] = datetime_interval(
-            *scrap_date, relativedelta(months=1), "%Y%m"
+    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+        new_scrap_date: StarInterval = StarInterval(
+            scrap_date,
+            relativedelta(months = 1),
+            '%Y%m'
         )
-        self.new_scrap_date_list: List[str] = [
-            month
-            for month in new_scrap_date
-            if self.csv_path(month)
-            not in [
-                os.path.join(self.root, filename) for filename in os.listdir(self.root)
-            ]
-        ]
+        history: List[str] = [os.path.join(self.root, filename) for filename in os.listdir(self.root)]
 
-    def get_download_tasks(self, session):
-        print(f"{self.__class__.__name__}: Downloading missing data...")
-        return [self.download_url(month, session) for month in self.new_scrap_date_list]
+        for month in new_scrap_date:
+            if self.csv_path(month.str()) not in history:
+                self.new_scrap_date_list.append(month)
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def download_url(self, month, session):
@@ -79,10 +68,8 @@ class Dst:
                 for line in out_list:
                     await f.write(line + ",\n")
 
-    """Main object pipeline"""
-
-    async def downloader_pipeline(self, scrap_date, session):
-        self.get_check_tasks(scrap_date)
+    async def fetch(self, scrap_date, session):
+        self._check_tasks(scrap_date)
 
         downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
 
@@ -92,35 +79,10 @@ class Dst:
         ):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
-    """Prep pipeline"""
-
-    def get_df_unit(self, date: str) -> pd.Series:
-        df = pd.read_csv(self.csv_path(date))["dst_index"]
+    def _get_df_unit(self, date: str) -> pl.Series:
+        df = pl.read_csv(self.csv_path(date)).get_column("dst_index")
         start_date = datetime(int(date[:4]), int(date[4:6]), 1)
-        end_date = start_date + relativedelta(months=1) - timedelta(hours=1)
-        full_range = pd.date_range(start=start_date, end=end_date, freq="1h")
+        end_date = start_date + relativedelta(months=1) - timedelta(hours=1) ## todo
+        full_range = pl.date_range(start=start_date, end=end_date, freq="1h")
         df.index = full_range
         return df
-
-    def get_df(self, scrap_date: Tuple[datetime, datetime]) -> pd.Series:
-        month_scrap: List[str] = datetime_interval(
-            scrap_date[0], scrap_date[-1], relativedelta(months=1), "%Y%m"
-        )
-        return pd.concat([self.get_df_unit(date) for date in month_scrap])
-
-    def data_prep(self, scrap_date: Tuple[datetime, datetime], step_size: timedelta):
-        assert (
-            timedelta(hours=1) <= step_size
-        ), "Not valid step_size, must be greater than 1 hour"
-
-        init_date = pd.to_datetime(scrap_date[0])
-        last_date = pd.to_datetime(scrap_date[-1])
-
-        serie = self.get_df(scrap_date)
-
-        return (
-            serie[(serie.index >= init_date) & (serie.index <= last_date)]
-            .interpolate()
-            .resample(timedelta_to_freq(step_size))
-            .mean()
-        )

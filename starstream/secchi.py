@@ -1,6 +1,8 @@
 import asyncio
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
-from .utils import datetime_interval, handle_client_connection_error
+
+from starstream._base import Satellite
+from .utils import StarInterval, datetime_interval, handle_client_connection_error
 
 from tqdm import tqdm
 import aiofiles
@@ -36,7 +38,7 @@ def parseUrl(url: str) -> Tuple[str, str]:
 
 class STEREO_A:
     class SECCHI:
-        class EUVI:
+        class EUVI(Satellite):
             def __init__(
                 self,
                 wavelength: str | Sequence[str],
@@ -44,6 +46,7 @@ class STEREO_A:
                 batch_size: int = 10,
             ) -> None:
                 self.root_path: str = download_path
+                self.new_scrap_date_list = []
                 self.batch_size: int = batch_size
                 self.wavelength: str | Sequence[str] = (
                     wavelength if not isinstance(wavelength, str) else [wavelength]
@@ -114,41 +117,47 @@ class STEREO_A:
 
             def get_scrap_names_tasks(self, session) -> List[Coroutine]:
                 return [
-                    self.scrap_date_names(session, date, wavelength)
+                    self.scrap_date_names(session, date.str(), wavelength)
                     for date in self.new_scrap_date_list
                     for wavelength in self.wavelength
                 ]
 
-            def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
-                new_scrap_date: List[str] = datetime_interval(
-                    *scrap_date, timedelta(days=1)
+            def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+                new_scrap_date: StarInterval = StarInterval(
+                    scrap_date,
+                    timedelta(days = 1)
                 )
-                self.new_scrap_date_list = [
-                    date
-                    for date in new_scrap_date
-                    for wavelength in self.wavelength
-                    if len(glob.glob(self.root_path_png_scrap(date, wavelength))) == 0
-                ]
 
-            def data_prep(self, scrap_date: Tuple[datetime, datetime]):
-                new_scrap_date = datetime_interval(
-                    scrap_date[0], scrap_date[-1], timedelta(days=1)
+                for date in new_scrap_date:
+                    for wavelength in self.wavelength:
+                        if len(glob.glob(self.root_path_png_scrap(date.str(), wavelength))) == 0:
+                            self.new_scrap_date_list.append(date)
+
+            def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+                paths: List[str] = self._path_prep(scrap_date)
+
+            def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+                paths: List[str] = self._path_prep(scrap_date)
+
+            def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+                new_scrap_date: StarInterval = StarInterval(
+                    scrap_date,
+                    timedelta(days = 1)
                 )
-                out = [
-                    glob.glob(self.root_path_png_scrap(date, wavelength))
-                    for date in new_scrap_date
-                    for wavelength in self.wavelength
-                ]
-                out = [*chain.from_iterable(out)]
+
+                out = []
+                for date in new_scrap_date:
+                    for wavelength in self.wavelength:
+                        out.extend(glob.glob(self.root_path_png_scrap(date.str(), wavelength)))
 
                 return out
 
-            def get_download_tasks(
+            def _get_download_tasks(
                 self, session, name_list: List[str]
             ) -> List[Coroutine]:
                 return [self.download_url(session, name) for name in name_list]
 
-            async def downloader_pipeline(
+            async def fetch(
                 self, scrap_date: Tuple[datetime, datetime], session
             ) -> None:
                 self.check_tasks(scrap_date)

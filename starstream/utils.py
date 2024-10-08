@@ -15,43 +15,17 @@ from typing import Dict, Optional, Tuple, List, Any, Union
 import aiohttp
 from dataclasses import dataclass, field
 from itertools import chain
-
+import polars as pl
+import numpy as np
+from PIL import Image
+import aiofiles
+import io
+from concurrent.futures import ThreadPoolExecutor
 
 __all__ = ["DataDownloading"]
 
 
-def separe_interval(init: datetime, end: datetime, step_size: timedelta):
-    intervals = []
-    current_date = init
-    while current_date <= end:
-        intervals.append((current_date, current_date + step_size))
-        current_date += step_size + timedelta(days=1)
-    return intervals
-
-
-def hour_steps(init_hour: datetime, last_hour: datetime, step_size: timedelta):
-    assert step_size >= timedelta(minutes=2), "2 minutes is the highest resolution"
-    hours = []
-    current_hour = init_hour
-    while current_hour <= last_hour:
-        hours.append(current_hour)
-        current_hour += step_size
-    return [datetime.strftime(iters, "%Y%m%d-%H%M%S").split("-") for iters in hours]
-
-
-def l1_hour_steps(
-    init_hour: datetime, last_hour: datetime, seq_len: timedelta = timedelta(hours=2)
-):
-    init_hour = init_hour - seq_len
-    return datetime.strftime(init_hour, "%Y%m%d-%H%M%S"), datetime.strftime(
-        last_hour, "%Y%m%d-%H%M%S"
-    )
-
-
-def scrap_date_to_month(scrap_date: List[str]) -> List[str]:
-    return [day[:6] for day in scrap_date]
-
-
+## Asynchronous processing
 async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
     cdf_file = await asyncio.get_event_loop().run_in_executor(None, pycdf.CDF, cdf_path)
     if iscoroutinefunction(processing):
@@ -119,20 +93,8 @@ async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     fits_file.close()
     return out
 
-def datetime_interval(
-    init: datetime,
-    last: datetime,
-    step_size: Union[relativedelta, timedelta],
-    output_format: str = "%Y%m%d",
-) -> List[str]:
-    current_date = init
-    date_list = []
-    while current_date <= last:
-        date_list.append(current_date.strftime(output_format))
-        current_date += step_size
-    return date_list
 
-
+## Datetime manipulation
 def timedelta_to_freq(timedelta_obj: timedelta) -> str:
     total_seconds = timedelta_obj.total_seconds()
     if total_seconds % 1 != 0:
@@ -155,16 +117,29 @@ def timedelta_to_freq(timedelta_obj: timedelta) -> str:
 
     return "".join(freq_parts) if freq_parts else "0s"
 
+def to_polars(obj: datetime):
+    return pl.datetime(
+        year = obj.year,
+        month = obj.month,
+        day = obj.day,
+        hour = obj.hour,
+        minute = obj.minute,
+        second = obj.second
+    )
+
 @dataclass(frozen=True)
 class StarDate:
     date: datetime
     format: Optional[str] = field(default = None)
 
-    def str(self, format: Optional[str]) -> str:
+    def str(self, format: Optional[str] = None) -> str:
         if format is None:
             assert (self.format is not None), "String format not defined"
             return self.date.strftime(self.format)
         return self.date.strftime(format)
+
+    def polars(self):
+        return to_polars(self.date)
 
 def interval_time(init: StarDate, end: StarDate, resolution: timedelta) -> List[StarDate]:
     current_time = init.date
@@ -176,16 +151,18 @@ def interval_time(init: StarDate, end: StarDate, resolution: timedelta) -> List[
 
 @dataclass
 class StarInterval:
-    lower_boundary: StarDate
-    upper_boundary: StarDate
-    resolution: timedelta = field(default=timedelta(hours=1))
+    scrap_date_list: List[Tuple[datetime, datetime]]
+    resolution: Union[timedelta, relativedelta] = field(default=timedelta(days=1))
+    format: str = field(default = '%Y%m%d')
 
     def __post_init__(self) -> None:
-        assert self.lower_boundary.format == self.upper_boundary.format, "Boundaries' format must be equal"
-        self.interval: List[StarDate] = interval_time(self.lower_boundary, self.upper_boundary, self.resolution)
+        self.interval: List[StarDate] = []
+        for init, end in self.scrap_date_list:
+            self.interval.extend(interval_time(StarDate(init, self.format), StarDate(end, self.format), self.resolution))
 
     def __iter__(self):
         return iter(self.interval)
+
 
 def mega_interval(*args) -> List[StarDate]:
     assert (isinstance(args[0], tuple)), "Not valid non-tuple argument"
@@ -204,6 +181,7 @@ async def downloader(
     async with aiohttp.ClientSession() as session:
         await asyncio.gather(*[satellite(scrap_date, session) for satellite in sat_objs])
 
+## Decorator for connection error
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="exp"
 ) -> Callable:
@@ -235,3 +213,27 @@ def handle_client_connection_error(
         return wrapper
 
     return decorator
+
+class StarImage:
+    def process_image(self, content: bytes):
+        image = Image.open(io.BytesIO(content))
+        return np.array(image)
+
+    async def load_npy_from_png(self, path: str):
+        async with aiofiles.open(path, mode='rb') as file:
+            content = await file.read()
+
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            array = await loop.run_in_executor(pool, self.process_image, content)
+
+        return array
+
+    async def get_numpy(self, paths) -> NDArray:
+        return np.stack(
+            await asyncio.gather(*[self.load_npy_from_png(path) for path in paths]),
+            axis = 0
+        )
+
+    async def get_torch(self, paths: List[str]) -> Tensor:
+        return torch.from_numpy(await self.get_numpy(paths))
