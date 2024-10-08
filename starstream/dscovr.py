@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 from starstream._base import Satellite
 from .utils import (
+    StarDate,
     StarInterval,
     handle_client_connection_error,
     asyncGZ,
@@ -89,9 +90,7 @@ class __Base(Satellite):
         with open(update_path, "x") as file:
             file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-    async def _check_tasks(
-        self, scrap_date_list: List[Tuple[datetime, datetime]]
-    ) -> None:
+    async def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]) -> None:
         await self._check_update(scrap_date_list)
         new_scrap_date: StarInterval = StarInterval(
             scrap_date_list, timedelta(days=1), "%Y%m%d"
@@ -110,8 +109,8 @@ class __Base(Satellite):
         df.to_csv(self.csv_path(date))
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
-    async def _download_url(self, url: str, date: str, session) -> None:
-        async with session.get(url, ssl=True) as response:
+    async def _download_url(self, url: str, date: StarDate, session) -> None:
+        async with session.get(url, ssl=False) as response:
             if response.status != 200:
                 print(
                     f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
@@ -127,7 +126,7 @@ class __Base(Satellite):
                     return
                 await asyncGZ(BytesIO(data), self._gz_processing, url, date)
 
-    async def _get_urls(self) -> List[str]:
+    async def _get_urls(self) -> List[Tuple[str, StarDate]]:
         async with aiofiles.open(
             osp.join(osp.dirname(__file__), "trivials/url.txt"), "r"
         ) as file:
@@ -135,34 +134,13 @@ class __Base(Satellite):
         url_list = []
         for url in tqdm(lines, desc=f"{self.__class__.__name__}: Getting the URLs..."):
             for date in self.new_scrap_date_list:
-                if date + "000000" in url and self.achronym in url:
+                if date.str() + "000000" in url and self.achronym in url:
                     url_list.append((url, date))
         return url_list
 
     def _get_download_tasks(self, session) -> List[Coroutine]:
         urls_dates = asyncio.run(self._get_urls())
         return [self._download_url(url, date, session) for url, date in urls_dates]
-
-    async def fetch(
-        self,
-        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-        session,
-    ) -> None:
-        if isinstance(scrap_date[0], datetime):
-            await self._check_tasks([scrap_date])
-        else:
-            await self._check_tasks(scrap_date)
-
-        if self.new_scrap_date_list == []:
-            print("Already downloaded")
-        else:
-            downloading_tasks: List[Coroutine] = self._get_download_tasks(session)
-            for i in tqdm(
-                range(0, len(downloading_tasks), self.batch_size),
-                desc=f"Download for {self.__class__.__name__}...",
-            ):
-                await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-
 
 class DSCOVR:
     class FaradayCup(__Base):

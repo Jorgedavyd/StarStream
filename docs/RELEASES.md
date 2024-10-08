@@ -5,4 +5,13 @@ First release
 Added: GOES
 Fixed: Limitless delivery.
 
-
+# 1.0.3
+Added:
+    - Optimization: Preprocessing with Polars.
+    - Optimization: New date sampling methods for optimized behavior.
+    - Methods:
+        get_numpy
+        get_torch
+        get_pandas
+        get_polars
+    - Modularized the whole library for Satellite object.

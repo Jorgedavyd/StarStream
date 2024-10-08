@@ -1,38 +1,27 @@
-from starstream._base import Satellite
+from starstream._base import CDAWeb
 from .utils import (
     StarInterval,
-    datetime_interval,
     handle_client_connection_error,
-    timedelta_to_freq,
+    to_polars,
 )
-from typing import Callable, Coroutine, List, Tuple, Union
+from typing import List, Tuple
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
-import os.path as osp
 from tqdm import tqdm
-import polar as pl
+import polars as pl
 import aiofiles
-import asyncio
-import asyncio
 import os
 
 __all__ = ["Dst"]
 
-
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
 
+class Dst(CDAWeb):
+    def __init__(self, download_path: str =  "./data/Dst", batch_size: int = 10) -> None:
+        super().__init__(download_path, batch_size)
 
-class Dst(Satellite):
-    def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
-        self.batch_size: int = batch_size
-        self.root: str = download_path
-        self.csv_path: Callable[[str], str] = lambda month: osp.join(
-            self.root, f"{month}.csv"
-        )
-        os.makedirs(self.root, exist_ok=True)
-
-    def date_to_url(self, month: str) -> str:
+    def _date_to_url(self, month: str) -> str:
         date = datetime.strptime(month, "%Y%m")
         last_decem = last_december()
 
@@ -50,16 +39,16 @@ class Dst(Satellite):
             scrap_date, relativedelta(months=1), "%Y%m"
         )
         history: List[str] = [
-            os.path.join(self.root, filename) for filename in os.listdir(self.root)
+            os.path.join(self.root_path, filename) for filename in os.listdir(self.root_path)
         ]
 
-        for month in new_scrap_date:
+        for month in tqdm(new_scrap_date, desc = f"{self.__class__.__name__}: Looking for missing dates..."):
             if self.csv_path(month.str()) not in history:
                 self.new_scrap_date_list.append(month)
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
-    async def download_url(self, month, session):
-        async with session.get(self.date_to_url(month), ssl=False) as request:
+    async def _download_url(self, month, session):
+        async with session.get(self._date_to_url(month), ssl=False) as request:
             data = await request.text()
             data = data.split("\n")[:-2]
             out_list: List[str] = []
@@ -75,26 +64,12 @@ class Dst(Satellite):
                 for line in out_list:
                     await f.write(line + ",\n")
 
-    async def fetch(
-        self,
-        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-        session,
-    ):
-        if isinstance(scrap_date[0], datetime):
-            self._check_tasks([scrap_date])
-        else:
-            self._check_tasks(scrap_date)
-        downloading_tasks: List[Coroutine] = self._get_download_tasks(session)
-        for i in tqdm(
-            range(0, len(downloading_tasks), self.batch_size),
-            desc=f"Downloading for {self.__class__.__name__}...",
-        ):
-            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-
-    def _get_df_unit(self, date: str) -> pl.Series:
+    def _get_df_unit(self, date: str) -> pl.DataFrame:
         df = pl.read_csv(self.csv_path(date)).get_column("dst_index")
-        start_date = datetime(int(date[:4]), int(date[4:6]), 1)
-        end_date = start_date + relativedelta(months=1) - timedelta(hours=1)  ## todo
+        first_day: datetime = datetime(int(date[:4]), int(date[4:6]), 1)
+        final_day: datetime = first_day + relativedelta(months=1) - timedelta(hours=1)  ## todo
+        start_date = to_polars(first_day)
+        end_date = to_polars(final_day)
         full_range = pl.date_range(start=start_date, end=end_date, freq="1h")
-        df.index = full_range
+        df.with_columns(full_range)
         return df

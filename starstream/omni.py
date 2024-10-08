@@ -1,20 +1,16 @@
-from .utils import asyncCDF, datetime_interval, timedelta_to_freq
 from dateutil.relativedelta import relativedelta
-from datetime import datetime, timedelta
-from typing import Coroutine, List, Tuple
+from .utils import StarInterval
+from typing import List, Tuple
+from datetime import datetime
 from ._base import CDAWeb
 from tqdm import tqdm
-import pandas as pd
-import asyncio
 import os
 
 __all__ = ["OMNI"]
 
 
 class OMNI(CDAWeb):
-    def __init__(
-        self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10
-    ) -> None:
+    def __init__(self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10) -> None:
         super().__init__(download_path, batch_size)
         self.url = (
             lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/omni/hro2_5min/{date[:4]}/omni_hro2_5min_{date}01_v01.cdf"
@@ -36,56 +32,15 @@ class OMNI(CDAWeb):
         ]
         self.variables = self.phy_obs
 
-    def check_tasks(self, scrap_date: Tuple[datetime, datetime]):
-        print(f"{self.__class__.__name__}: Looking for missing dates...")
-        new_scrap_date: List[str] = datetime_interval(
-            *scrap_date, relativedelta(months=1), "%Y%m"
-        )
-        self.new_scrap_date_list: List[str] = [
-            date for date in new_scrap_date if not os.path.exists(self.csv_path(date))
-        ]
+    def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]):
+        new_scrap_date: StarInterval = StarInterval(scrap_date_list, relativedelta(months = 1), '%Y%m')
 
-    def get_download_tasks(self, session) -> List[Coroutine]:
-        return [self.download_url(session, date) for date in self.new_scrap_date_list]
-
-    async def preprocessing(self, date: str) -> None:
-        await asyncCDF(self.cdf_path(date), self.default_cda_processing, date)
-        os.remove(self.cdf_path(date))
-
-    def get_preprocessing_tasks(self) -> List[Coroutine]:
-        return [self.preprocessing(date) for date in self.new_scrap_date_list]
-
-    async def downloader_pipeline(self, scrap_date: Tuple[datetime, datetime], session):
-        self.check_tasks(scrap_date)
-
-        downloading_tasks = self.get_download_tasks(session)
-        for i in tqdm(
-            range(0, len(downloading_tasks), self.batch_size),
-            desc=f"Downloading for {self.__class__.__name__}",
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
         ):
-            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
+            if not os.path.exists(self.csv_path(date.str())):
+                self.new_scrap_date_list.append(date)
 
-        prep_tasks = self.get_preprocessing_tasks()
-        for i in tqdm(
-            range(0, len(prep_tasks), self.batch_size),
-            desc=f"Downloading for {self.__class__.__name__}",
-        ):
-            await asyncio.gather(*prep_tasks[i : i + self.batch_size])
-
-    def data_prep(
-        self, scrap_date: Tuple[datetime, datetime], step_size: timedelta
-    ) -> pd.DataFrame:
-        new_scrap_date: List[str] = datetime_interval(
-            *scrap_date, relativedelta(months=1), "%Y%m"
-        )
-        df_list: List[pd.DataFrame] = [
-            pd.read_csv(self.csv_path(date), parse_dates=True, index_col=0)
-            for date in new_scrap_date
-        ]
-
-        return (
-            pd.concat(df_list, axis=0)
-            .resample(timedelta_to_freq(step_size))
-            .mean()
-            .interpolate()
-        )
+        if self.new_scrap_date_list:
+            os.makedirs(self.root_path, exist_ok=True)

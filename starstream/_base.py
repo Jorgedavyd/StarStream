@@ -20,7 +20,6 @@ import aiofiles
 import asyncio
 import os
 
-
 class Satellite:
     new_scrap_date_list: List[StarDate] = []
     batch_size: int
@@ -38,7 +37,7 @@ class Satellite:
 
     def _get_download_tasks(self, session) -> List[Coroutine]:
         return [
-            self._download_url(session, date.str()) for date in self.new_scrap_date_list
+            self._download_url(session, date) for date in self.new_scrap_date_list
         ]
 
     async def fetch(
@@ -177,8 +176,8 @@ class CDAWeb(Satellite):
             os.makedirs(self.root_path, exist_ok=True)
 
     @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
-    async def _download_url(self, session, date: str) -> None:
-        url: str = self.url(date)
+    async def _download_url(self, session, date: StarDate) -> None:
+        url: str = self.url(date.str())
         async with session.get(url) as response:
             if response.status != 200:
                 print(
@@ -193,13 +192,14 @@ class CDAWeb(Satellite):
                     )
                     self.new_scrap_date_list.remove(date)
                     return
-                async with aiofiles.open(self.cdf_path(date), "wb") as f:
+                async with aiofiles.open(self.cdf_path(date.str()), "wb") as f:
                     await f.write(cdf_data)
 
     async def fetch(
         self,
         scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
         session,
+        preprocess: bool = True
     ) -> None:
         if isinstance(scrap_date[0], datetime):
             self._check_tasks([scrap_date])
@@ -211,8 +211,9 @@ class CDAWeb(Satellite):
             desc=f"{self.__class__.__name__}: Downloading...",
         ):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-        for date in tqdm(
-            self.new_scrap_date_list,
-            desc=f"{self.__class__.__name__}: Preprocessing...",
-        ):
-            self.preprocess(date.str())
+        if preprocess is not None:
+            for date in tqdm(
+                self.new_scrap_date_list,
+                desc=f"{self.__class__.__name__}: Preprocessing...",
+            ):
+                self.preprocess(date.str())

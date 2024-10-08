@@ -1,9 +1,11 @@
-from starstream._base import Satellite
-from starstream.utils import StarImage, StarInterval, handle_client_connection_error
-from typing import Callable, List, Tuple, Coroutine
+from starstream.utils import StarDate, StarImage, StarInterval, handle_client_connection_error
+from typing import Callable, List, Tuple, Coroutine, Union
 from datetime import datetime, timedelta
+from starstream._base import Satellite
+from numpy._typing import NDArray
 from bs4 import BeautifulSoup
 from itertools import chain
+from torch import Tensor
 from tqdm import tqdm
 import os.path as osp
 import aiofiles
@@ -44,18 +46,16 @@ class GOES16(Satellite):
             scrap_date,
             timedelta(days=1),
         )
-        for date in new_scrap_date:
+        for date in tqdm(new_scrap_date, desc = f'{self.__class__.__name__}: Looking for missing dates...'):
             if len(glob.glob(self.path(date.str() + "*"))) == 0:
                 self.new_scrap_date_list.append(date)
 
-    def get_scrap_tasks(self, session) -> List[Coroutine]:
-        return [
-            self.scrap_url(session, date.str()) for date in self.new_scrap_date_list
-        ]
+    def _get_scrap_tasks(self, session) -> List[Coroutine]:
+        return [self.scrap_url(session, date) for date in self.new_scrap_date_list]
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
-    async def scrap_url(self, session, date: str) -> List[Tuple[str, str]] | None:
-        url: str = self.url("", date)
+    async def scrap_url(self, session, date: StarDate) -> Union[List[Tuple[Union[List[str], None], StarDate]], None]:
+        url: str = self.url("", date.str())
         async with session.get(url) as request:
             if request.status != 200:
                 print(
@@ -73,7 +73,7 @@ class GOES16(Satellite):
                 soup = BeautifulSoup(html, "html.parser")
                 href = lambda x: x and x.endswith("fits.gz")
                 fits_links = soup.find_all("a", href=href)
-                names = [(link["href"], date) for link in fits_links]
+                names = [(link["href"], date.str()) for link in fits_links]
                 names = [
                     name
                     for idx, name in enumerate(names)
@@ -82,30 +82,18 @@ class GOES16(Satellite):
                 return names
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
-    async def download_url(self, session, date: str, name: str) -> None:
+    async def _download_url(self, session, date: str, name: str) -> None:
         url: str = self.url(name, date)
         path: str = self.path(name)
-        async with session.get(url) as request:
-            if request.status != 200:
-                print(
-                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                )
-                self.new_scrap_date_list.remove(date)
-            else:
-                data = await request.read()
-                if data.startswith(b"<html>"):
-                    print(
-                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                    )
-                    self.new_scrap_date_list.remove(date)
-                    return
-                async with aiofiles.open(path, "wb") as file:
-                    await file.write(data)
+        async with session.get(url, ssl = False) as request:
+            data = await request.read()
+            async with aiofiles.open(path, "wb") as file:
+                await file.write(data)
 
     def _get_download_tasks(
         self, session, fits_names: List[Tuple[str, str]]
     ) -> List[Coroutine]:
-        return [self.download_url(session, date, name) for name, date in fits_names]
+        return [self._download_url(session, date, name) for name, date in fits_names]
 
     def _get_preprocessing_tasks(
         self, fits_names: List[Tuple[str, str]]
@@ -125,7 +113,7 @@ class GOES16(Satellite):
     async def fetch(self, scrap_date: List[Tuple[datetime, datetime]], session) -> None:
         self._check_data(scrap_date)
         fixed_fits_links = []
-        scrap_tasks = self.get_scrap_tasks(session)
+        scrap_tasks = self._get_scrap_tasks(session)
 
         for i in tqdm(
             range(0, len(scrap_tasks), self.batch_size),
@@ -151,7 +139,16 @@ class GOES16(Satellite):
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
-    def get(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+
+    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        paths: List[str] = self._path_prep(scrap_date)
+        return asyncio.run(StarImage.get_numpy(paths))
+
+    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        paths: List[str] = self._path_prep(scrap_date)
+        return asyncio.run(StarImage.get_torch(paths))
+
+    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         new_scrap_date: StarInterval = StarInterval(
             scrap_date,
             timedelta(days=1),
