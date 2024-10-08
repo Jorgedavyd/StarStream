@@ -1,18 +1,19 @@
-import asyncio
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
-
+from .utils import StarDate, StarImage, StarInterval, handle_client_connection_error
 from starstream._base import Satellite
-from .utils import StarInterval, datetime_interval, handle_client_connection_error
-
-from tqdm import tqdm
-import aiofiles
 from datetime import datetime, timedelta
+from numpy._typing import NDArray
 from bs4 import BeautifulSoup
-import glob
 from itertools import chain
-import os
 import os.path as osp
+from tqdm import tqdm
+from torch import Tensor
+import aiofiles
+import asyncio
+import glob
+import os
 import re
+
 
 __all__ = ["STEREO_A"]
 
@@ -31,9 +32,11 @@ def url(name: str) -> str:
 
 def parseUrl(url: str) -> Tuple[str, str]:
     url_match = re.search(r"(\d{8})_(\d{6})_(\d{3})eu_R.png", url)
-    date: str = url_match.group(1)
-    wavelength: str = url_match.group(3)
-    return date, wavelength
+    if url_match is not None:
+        date: str = url_match.group(1)
+        wavelength: str = url_match.group(3)
+        return date, wavelength
+    raise ValueError("Match not found")
 
 
 class STEREO_A:
@@ -70,9 +73,9 @@ class STEREO_A:
                     os.makedirs(osp.join(self.root_path, wavelength), exist_ok=True)
 
             async def scrap_date_names(
-                self, session, date: str, wavelength: str
+                self, session, date: StarDate, wavelength: str
             ) -> Union[List[str], None]:
-                url: str = self.scrap_url(date, wavelength)
+                url: str = self.scrap_url(date.str(), wavelength)
                 async with session.get(url, ssl=False) as response:
                     if response.status != 200:
                         print(
@@ -91,9 +94,9 @@ class STEREO_A:
 
                         names = [
                             name["href"]
-                            for name in soup.find_all(
-                                "a", href=lambda href: href.endswith("R.png")
-                            )
+                            for name in
+                            soup.find_all("a", href=lambda key: key.endswith("R.png"))
+                            if name is not None
                         ]
 
                         return names
@@ -117,7 +120,7 @@ class STEREO_A:
 
             def get_scrap_names_tasks(self, session) -> List[Coroutine]:
                 return [
-                    self.scrap_date_names(session, date.str(), wavelength)
+                    self.scrap_date_names(session, date, wavelength)
                     for date in self.new_scrap_date_list
                     for wavelength in self.wavelength
                 ]
@@ -135,32 +138,31 @@ class STEREO_A:
 
             def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
                 paths: List[str] = self._path_prep(scrap_date)
+                return asyncio.run(StarImage.get_numpy(paths))
 
             def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
                 paths: List[str] = self._path_prep(scrap_date)
+                return asyncio.run(StarImage.get_torch(paths))
 
             def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
                 new_scrap_date: StarInterval = StarInterval(
                     scrap_date,
                     timedelta(days = 1)
                 )
-
                 out = []
                 for date in new_scrap_date:
                     for wavelength in self.wavelength:
                         out.extend(glob.glob(self.root_path_png_scrap(date.str(), wavelength)))
-
                 return out
 
-            def _get_download_tasks(
-                self, session, name_list: List[str]
-            ) -> List[Coroutine]:
+            def _get_download_tasks(self, session, name_list: List[str]) -> List[Coroutine]:
                 return [self.download_url(session, name) for name in name_list]
 
-            async def fetch(
-                self, scrap_date: Tuple[datetime, datetime], session
-            ) -> None:
-                self.check_tasks(scrap_date)
+            async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+                if isinstance(scrap_date[0], datetime):
+                    self.check_tasks([scrap_date])
+                else:
+                    self.check_tasks(scrap_date)
                 if len(self.new_scrap_date_list) == 0:
                     print(f"{self.__class__.__name__}: Already downloaded")
                 else:
@@ -179,7 +181,7 @@ class STEREO_A:
 
                     name_list = [name for name in name_list if name is not None]
 
-                    downloading_tasks = self.get_download_tasks(session, name_list)
+                    downloading_tasks = self._get_download_tasks(session, name_list)
 
                     for i in tqdm(
                         range(0, len(downloading_tasks), self.batch_size),

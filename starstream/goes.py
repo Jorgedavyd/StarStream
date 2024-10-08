@@ -1,5 +1,5 @@
 from starstream._base import Satellite
-from starstream.utils import StarInterval, handle_client_connection_error
+from starstream.utils import StarImage, StarInterval, handle_client_connection_error
 from typing import Callable, List, Tuple, Coroutine
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup

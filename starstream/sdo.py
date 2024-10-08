@@ -1,7 +1,10 @@
 from astropy.io import fits
-from pandas.io.common import gzip
+from starstream._base import Satellite
 from .utils import (
     StarDate,
+    StarImage,
+    datetime,
+    StarInterval,
     timedelta_to_freq,
     handle_client_connection_error,
 )
@@ -9,13 +12,14 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
 from tqdm import tqdm
-import pandas as pd
 import aiofiles
 import asyncio
 import glob
 import os
-from typing import Callable, Coroutine, List, Tuple, Union
+from typing import Callable, Coroutine, List, Optional, Tuple, Union
 import os.path as osp
+import polars as pl
+import gzip
 
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
@@ -30,9 +34,58 @@ def date_to_day_of_year(date_string):
     day_of_year_string = f"{day_of_year:03d}"
     return date_string[:4] + day_of_year_string
 
+class Base(Satellite):
+    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+        if isinstance(scrap_date[0], datetime):
+            self.check_tasks([scrap_date])
+        else:
+            self.check_tasks(scrap_date)
+        await self.batched_download(session)
+
+    async def batched_download(self, client) -> None:
+        params = []
+        for i in tqdm(
+            range(0, len(self.new_scrap_date_list), self.batch_size),
+            desc="Getting file names...",
+        ):
+            params.extend(
+                [
+                    *chain.from_iterable(
+                        await asyncio.gather(
+                            *[
+                                self.scrap_names(date, client)
+                                for date in self.new_scrap_date_list[
+                                    i : i + self.batch_size
+                                ]
+                            ]
+                        )
+                    )
+                ]
+            )
+
+        params = [i for i in params if i is not None]
+        for i in tqdm(
+            range(0, len(params), self.batch_size), desc="Getting images..."
+        ):
+            await asyncio.gather(
+                *[
+                    self.download_from_name(name, client)
+                    for name in params[i : i + self.batch_size]
+                ]
+            )
+
+    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        paths: List[str] = self._path_prep(scrap_date)
+        return asyncio.run(StarImage.get_numpy(paths))
+
+    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        paths: List[str] = self._path_prep(scrap_date)
+        return asyncio.run(StarImage.get_torch(paths))
+
+
 
 class SDO:
-    class AIA_HR:
+    class AIA_HR(Satellite):
         min_step_size: timedelta = timedelta(seconds=36)
         batch_size = 10
         wavelengths: list = [
@@ -82,18 +135,11 @@ class SDO:
             )
             os.makedirs(self.jp2_path(""), exist_ok=True)
 
-        def check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
-            print(f"{self.__class__.__name__}: Looking for missing dates...")
-            ### mirar
-            new_scrap_date: List[str] = datetime_interval(
-                *scrap_date, timedelta(days=1)
-            )
-            self.new_scrap_date_list: List[str] = [
-                date
-                for date in new_scrap_date
-                if len(glob.glob(self.scrap_path(date)))
-                < ((timedelta(days=1) / self.step_size) - 1)
-            ]
+        def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+            new_scrap_date: StarInterval = StarInterval(scrap_date)
+            for date in new_scrap_date:
+                if len(glob.glob(self.scrap_path(date.str()))) < ((timedelta(days=1) / self.step_size) - 1):
+                    self.new_scrap_date_list.append(date)
 
         async def get_names(self, html):
             loop = asyncio.get_event_loop()
@@ -108,7 +154,7 @@ class SDO:
         @handle_client_connection_error(
             increment="exp", default_cooldown=5, max_retries=3
         )
-        async def scrap_names(self, date, client):
+        async def scrap_names(self, date: StarDate, client):
             url = self.url(date, "")
             async with client.get(url) as response:
                 if response.status != 200:
@@ -141,56 +187,7 @@ class SDO:
             ) as f:
                 await f.write(await response.read())
 
-        async def batched_download(self, session):
-            params = []
-            for i in tqdm(
-                range(0, len(self.new_scrap_date_list), self.batch_size),
-                desc="Getting file names...",
-            ):
-                params.extend(
-                    [
-                        *chain.from_iterable(
-                            await asyncio.gather(
-                                *[
-                                    self.scrap_names(date, session)
-                                    for date in self.new_scrap_date_list[
-                                        i : i + self.batch_size
-                                    ]
-                                ]
-                            )
-                        )
-                    ]
-                )
-
-            params = [i for i in params if i is not None]
-
-            for i in tqdm(
-                range(0, len(params), self.batch_size), desc="Getting images..."
-            ):
-                await asyncio.gather(
-                    *[
-                        self.download_from_name(name, session)
-                        for name in params[i : i + self.batch_size]
-                    ]
-                )
-
-        def data_prep(self, scrap_date: tuple[StarDate, StarDate]):
-            new_scrap_date: List[str] = datetime_interval(
-                *scrap_date, timedelta(days=1)
-            )
-            return [
-                *chain.from_iterable(
-                    [glob.glob(self.scrap_path(date)) for date in new_scrap_date]
-                )
-            ]
-
-        async def downloader_pipeline(
-            self, scrap_date: Tuple[StarDate, StarDate], session
-        ):
-            self.check_tasks(scrap_date)
-            await self.batched_download(session)
-
-    class AIA_LR:
+    class AIA_LR(Base):
         def __init__(
             self,
             wavelength: str,
@@ -230,18 +227,14 @@ class SDO:
             )
             os.makedirs(self.jpg_path(""), exist_ok=True)
 
-        def check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
+        def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             print(
                 f"{self.__class__.__name__}: Looking for the links of missing dates..."
             )
-            new_scrap_date: List[str] = datetime_interval(
-                *scrap_date, timedelta(days=1)
-            )
-            self.new_scrap_date_list = [
-                date
-                for date in new_scrap_date
-                if len(glob.glob(self.scrap_path(date))) == 0
-            ]
+            new_scrap_date: StarInterval = StarInterval(scrap_date)
+            for date in new_scrap_date:
+                if len(glob.glob(self.scrap_path(date.str()))) == 0:
+                    self.new_scrap_date_list.append(date)
 
         async def get_names(self, html) -> List[str]:
             loop = asyncio.get_event_loop()
@@ -252,8 +245,8 @@ class SDO:
         @handle_client_connection_error(
             increment="exp", default_cooldown=5, max_retries=3
         )
-        async def scrap_names(self, date: str, client):
-            url = self.url(date, "")
+        async def scrap_names(self, date: StarDate, client):
+            url = self.url(date.str(), "")
             async with client.get(url) as response:
                 if response.status != 200:
                     print(
@@ -284,56 +277,18 @@ class SDO:
             ) as f:
                 await f.write(await response.read())
 
-        async def batched_download(self, client) -> None:
-            params = []
-            for i in tqdm(
-                range(0, len(self.new_scrap_date_list), self.batch_size),
-                desc="Getting file names...",
-            ):
-                params.extend(
-                    [
-                        *chain.from_iterable(
-                            await asyncio.gather(
-                                *[
-                                    self.scrap_names(date, client)
-                                    for date in self.new_scrap_date_list[
-                                        i : i + self.batch_size
-                                    ]
-                                ]
-                            )
-                        )
-                    ]
-                )
-
-            params = [i for i in params if i is not None]
-            for i in tqdm(
-                range(0, len(params), self.batch_size), desc="Getting images..."
-            ):
-                await asyncio.gather(
-                    *[
-                        self.download_from_name(name, client)
-                        for name in params[i : i + self.batch_size]
-                    ]
-                )
-
-        def data_prep(self, scrap_date: Tuple[StarDate, StarDate]) -> List[str]:
-            new_scrap_date = datetime_interval(*scrap_date, timedelta(days=1))
+        def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+            new_scrap_date: StarInterval = StarInterval(scrap_date)
             return [
                 *chain.from_iterable(
-                    [glob.glob(self.scrap_path(date)) for date in new_scrap_date]
+                    [glob.glob(self.scrap_path(date.str())) for date in new_scrap_date]
                 )
             ]
 
-        async def downloader_pipeline(
-            self, scrap_date: tuple[StarDate, StarDate], session
-        ):
-            self.check_tasks(scrap_date)
-            await self.batched_download(session)
-
-    class EVE:
-        def __init__(
-            self, download_path: str = "./data/SDO/EVE", batch_size: int = 256
-        ) -> None:
+    class EVE(Satellite):
+        def __init__(self, download_path: str = "./data/SDO/EVE", batch_size: int = 10, store_resolution: Optional[timedelta] = None) -> None:
+            if store_resolution is not None:
+                self.resolution = timedelta_to_freq(store_resolution)
             self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_008.fit.gz"
@@ -353,39 +308,49 @@ class SDO:
         def to_csv(self, date: str) -> None:
             path: str = self.eve_fits_path(date)
             with fits.open(path) as hdul:
-                df: pd.DataFrame = pd.DataFrame(hdul[1].data)
+                df: pl.DataFrame = pl.DataFrame(hdul[1].data)
 
-            df.index = df.apply(
-                lambda row: datetime(int(row["YEAR"]), 1, 1)
-                + timedelta(
-                    days=int(row["DOY"]) - 1,
-                    seconds=int(row["SOD"]),
-                    microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6),
-                ),
-                axis=1,
-            )
+            df = df.with_columns([
+                pl.struct(["YEAR", "DOY", "SOD"]).apply(
+                    lambda row: pl.datetime(
+                        year=int(row["YEAR"]),
+                        month=1,
+                        day=1
+                    ) + pl.duration(
+                        days=int(row["DOY"]) - 1,
+                        seconds=int(row["SOD"]),
+                        microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6)
+                    )
+                ).alias("datetime")
+            ])
 
-            df[["CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"]].resample(
-                "1min"
-            ).mean().to_csv(self.eve_csv_path(date))
+            df = df.select(["datetime", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
+            df = df.set_sorted("datetime")
 
+            if getattr(self, 'resolution') is not None:
+                df = df.groupby_dynamic("datetime", every="1m").agg([
+                    pl.col("CH_18").mean(),
+                    pl.col("CH_26").mean(),
+                    pl.col("CH_30").mean(),
+                    pl.col("Q_1").mean(),
+                    pl.col("Q_2").mean(),
+                    pl.col("Q_3").mean()
+                ])
+
+            df.write_csv(self.eve_csv_path(date))
             os.remove(self.eve_fits_path(date))
 
-        def get_check_tasks(self, scrap_date: Tuple[StarDate, StarDate]) -> None:
-            new_scrap_date: List[str] = datetime_interval(
-                *scrap_date, timedelta(days=1)
-            )
-            self.new_scrap_date_list = [
-                date
-                for date in new_scrap_date
-                if not os.path.exists(self.eve_csv_path(date))
-            ]
+        def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+            new_scrap_date: StarInterval = StarInterval(scrap_date)
+            for date in new_scrap_date:
+                if not os.path.exists(self.eve_csv_path(date.str())):
+                    self.new_scrap_date_list.append(date)
 
         async def download_task(self, session) -> None:
             for i in range(0, len(self.new_scrap_date_list), self.batch_size):
                 await asyncio.gather(
                     *[
-                        self.download_url(session, day)
+                        self.download_url(session, day.str())
                         for day in self.new_scrap_date_list[i : i + self.batch_size]
                     ]
                 )
@@ -401,10 +366,10 @@ class SDO:
 
         async def preprocessing(self) -> None:
             await asyncio.gather(
-                *[self.to_fits(date) for date in self.new_scrap_date_list]
+                *[self.to_fits(date.str()) for date in self.new_scrap_date_list]
             )
-            for date in tqdm(self.new_scrap_date_list):
-                self.to_csv(date)
+            for date in tqdm(self.new_scrap_date_list, desc = f'{self.__class__.__name__}: Preprocessing...'):
+                self.to_csv(date.str())
 
         async def download_url(self, session, day: str) -> None:
             url = self.url(day)
@@ -414,28 +379,12 @@ class SDO:
                     await file.write(data)
 
         def get_preprocessing_tasks(self, session) -> List[Coroutine]:
-            return [
-                self.download_url(session, date) for date in self.new_scrap_date_list
-            ]
+            return [self.download_url(session, date.str()) for date in self.new_scrap_date_list]
 
-        """prep pipeline"""
-
-        def data_prep(
-            self, scrap_date: Tuple[StarDate, StarDate], step_size
-        ) -> pd.DataFrame:
-            init, end = scrap_date
-            new_scrap_date = datetime_interval(init, end, step_size)
-            dfs = [pd.read_csv(self.eve_csv_path(date)) for date in new_scrap_date]
-            return (
-                pd.concat(dfs)
-                .resample(timedelta_to_freq(step_size))
-                .mean()
-                .loc[init:end]
-            )
-
-        async def downloader_pipeline(
-            self, scrap_date: Tuple[StarDate, StarDate], session
-        ):
-            self.get_check_tasks(scrap_date)
+        async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+            if isinstance(scrap_date[0], datetime):
+                self._check_tasks([scrap_date])
+            else:
+                self._check_tasks(scrap_date)
             await self.download_task(session)
             await self.preprocessing()

@@ -13,7 +13,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Coroutine, Tuple, Callable, List
+from typing import Coroutine, Tuple, Callable, List, Union
 from selenium.webdriver.chrome.options import Options
 import os.path as osp
 from bs4 import BeautifulSoup
@@ -31,6 +31,8 @@ class __Base(Satellite):
     level: str
     csv_path: Callable[[str], str]
     var: List[str]
+    achronym: str
+
     def __post_init__(self) -> None:
         assert (self.level == 'l2' or self.level == 'l1'), "Not valid data product level"
 
@@ -129,8 +131,12 @@ class __Base(Satellite):
         urls_dates = asyncio.run(self._get_urls())
         return [self._download_url(url, date, session) for url, date in urls_dates]
 
-    async def fetch(self, scrap_date: List[Tuple[datetime, datetime]], session) -> None:
-        await self._check_tasks(scrap_date)
+    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+        if isinstance(scrap_date[0], datetime):
+            await self._check_tasks([scrap_date])
+        else:
+            await self._check_tasks(scrap_date)
+
         if self.new_scrap_date_list == []:
             print("Already downloaded")
         else:
@@ -150,9 +156,9 @@ class DSCOVR:
                 root = download_path,
                 level = level,
                 csv_path = lambda date: __path_func(download_path, "faraday", level, date),
-                var = ["proton_density", "proton_speed", "proton_temperature"]
+                var = ["proton_density", "proton_speed", "proton_temperature"],
+                achronym = 'fc1' if level == 'l1' else 'fm1'
             )
-            self.achronym = 'fc1' if level == 'l1' else 'fm1'
 
     class Magnetometer(__Base):
         def __init__(self, download_path: str = "./data/DSCOVR", batch_size: int = 15, level: str = 'l1') -> None:
@@ -162,5 +168,5 @@ class DSCOVR:
                 level = level,
                 csv_path = lambda date: __path_func(download_path, level, "magnetometer", date),
                 var = ["bx_gsm", "by_gsm", "bz_gsm", "bt"],
+                achronym='mg1' if level == 'l1' else 'm1m'
             )
-            self.achronym = 'mg1' if level == 'l1' else 'm1m'

@@ -1,6 +1,6 @@
 from starstream._base import Satellite
 from .utils import StarInterval, datetime_interval, handle_client_connection_error, timedelta_to_freq
-from typing import Callable, Coroutine, List, Tuple
+from typing import Callable, Coroutine, List, Tuple, Union
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 import os.path as osp
@@ -68,11 +68,12 @@ class Dst(Satellite):
                 for line in out_list:
                     await f.write(line + ",\n")
 
-    async def fetch(self, scrap_date, session):
-        self._check_tasks(scrap_date)
-
-        downloading_tasks: List[Coroutine] = self.get_download_tasks(session)
-
+    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]],Tuple[datetime, datetime]], session):
+        if isinstance(scrap_date[0], datetime):
+            self._check_tasks([scrap_date])
+        else:
+            self._check_tasks(scrap_date)
+        downloading_tasks: List[Coroutine] = self._get_download_tasks(session)
         for i in tqdm(
             range(0, len(downloading_tasks), self.batch_size),
             desc=f"Downloading for {self.__class__.__name__}...",

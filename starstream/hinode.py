@@ -2,8 +2,8 @@ from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
 from tqdm import tqdm
 from .utils import (
+    StarInterval,
     asyncFITS,
-    datetime_interval,
     handle_client_connection_error,
 )
 from datetime import datetime, timedelta
@@ -40,30 +40,20 @@ class Hinode:
             )
             os.makedirs(self.xrt_folder_path, exist_ok=True)
 
-        def check_tasks(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             print(f"{self.__class__.__name__}: Looking for missing data...")
-            new_scrap_date: List[str] = datetime_interval(
-                *scrap_date, timedelta(hours=1), "%Y%m%d-%H%M"
-            )
-            self.new_scrap_date_list = [
-                date.split("-")
-                for date in new_scrap_date
-                if len(glob.glob(self.path(f'{date.split("-")[0]}*'))) == 0
-            ]
+            new_scrap_date: StarInterval = StarInterval(scrap_date, timedelta(minutes = 1), '%Y%m%d-%H%M')
+            for date in new_scrap_date:
+                if len(glob.glob(self.path(f'{date.str().split("-")[0]}*'))) == 0:
+                    self.new_scrap_date_list.append(date)
 
         def get_scrap_tasks(self, session) -> List[Coroutine]:
-            print(f"{self.__class__.__name__}: Scrapping URLs and downloading...")
-            return [
-                self.scrap_names(session, date, hour)
-                for date, hour in self.new_scrap_date_list
-            ]
+            return [self.scrap_names(session, *date.str().split("-")) for date in self.new_scrap_date_list]
 
         @handle_client_connection_error(
             max_retries=3, increment="exp", default_cooldown=5
         )
-        async def scrap_names(
-            self, session, date: str, hour: str
-        ) -> Union[List[str], None]:
+        async def scrap_names(self, session, date: str, hour: str) -> Union[List[str], None]:
             url: str = self.url(date, hour)
             async with session.get(url, ssl=False) as response:
                 if response.status != 200:

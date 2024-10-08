@@ -21,9 +21,10 @@ from PIL import Image
 import aiofiles
 import io
 from concurrent.futures import ThreadPoolExecutor
+import torch
+from torch import Tensor
 
 __all__ = ["DataDownloading"]
-
 
 ## Asynchronous processing
 async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
@@ -34,7 +35,6 @@ async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
         out = processing(cdf_file, *args)
     cdf_file.close()
     return out
-
 
 async def asyncZIP(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     zip_file = await asyncio.get_event_loop().run_in_executor(
@@ -47,7 +47,6 @@ async def asyncZIP(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     zip_file.close()
     return out
 
-
 async def asyncGZ(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     if iscoroutinefunction(processing):
@@ -57,16 +56,13 @@ async def asyncGZ(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     gz_file.close()
     return out
 
-
 async def asyncGZFITS(bytes_obj: BytesIO, processing, *args) -> None:
     gz_file = await asyncio.get_event_loop().run_in_executor(None, syncGZ, bytes_obj)
     await asyncFITS(BytesIO(gz_file.read()), processing, *args)
     gz_file.close()
 
-
 def syncGZ(file_obj: BytesIO):
     return gzip.GzipFile(fileobj=file_obj)
-
 
 async def asyncTAR(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     tar_file = await asyncio.get_event_loop().run_in_executor(None, syncTAR, bytes_obj)
@@ -77,10 +73,8 @@ async def asyncTAR(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     tar_file.close()
     return out
 
-
 def syncTAR(file_obj: BytesIO):
     return tarfile.open(fileobj=file_obj, mode="r")
-
 
 async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
     fits_file = await asyncio.get_event_loop().run_in_executor(
@@ -92,7 +86,6 @@ async def asyncFITS(bytes_obj: BytesIO, processing: Callable, *args) -> Any:
         out = processing(fits_file, *args)
     fits_file.close()
     return out
-
 
 ## Datetime manipulation
 def timedelta_to_freq(timedelta_obj: timedelta) -> str:
@@ -141,7 +134,7 @@ class StarDate:
     def polars(self):
         return to_polars(self.date)
 
-def interval_time(init: StarDate, end: StarDate, resolution: timedelta) -> List[StarDate]:
+def interval_time(init: StarDate, end: StarDate, resolution: Union[timedelta, relativedelta]) -> List[StarDate]:
     current_time = init.date
     dates = []
     while current_time < end.date:
@@ -215,25 +208,29 @@ def handle_client_connection_error(
     return decorator
 
 class StarImage:
-    def process_image(self, content: bytes):
+    @staticmethod
+    def process_image(content: bytes):
         image = Image.open(io.BytesIO(content))
         return np.array(image)
 
-    async def load_npy_from_png(self, path: str):
+    @staticmethod
+    async def load_npy_from_png(path: str):
         async with aiofiles.open(path, mode='rb') as file:
             content = await file.read()
 
         loop = asyncio.get_running_loop()
         with ThreadPoolExecutor() as pool:
-            array = await loop.run_in_executor(pool, self.process_image, content)
+            array = await loop.run_in_executor(pool, StarImage.process_image, content)
 
         return array
 
-    async def get_numpy(self, paths) -> NDArray:
+    @staticmethod
+    async def get_numpy(paths: List[str]) -> NDArray:
         return np.stack(
-            await asyncio.gather(*[self.load_npy_from_png(path) for path in paths]),
+            await asyncio.gather(*[StarImage.load_npy_from_png(path) for path in paths]),
             axis = 0
         )
 
-    async def get_torch(self, paths: List[str]) -> Tensor:
-        return torch.from_numpy(await self.get_numpy(paths))
+    @staticmethod
+    async def get_torch(paths: List[str]) -> Tensor:
+        return torch.from_numpy(await StarImage.get_numpy(paths))

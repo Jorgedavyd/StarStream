@@ -112,10 +112,12 @@ class SOHO:
                 "int_h41",
             ]
 
-        async def fetch(
-            self, scrap_date: List[Tuple[datetime, datetime]], session
-        ):
-            self._check_tasks(scrap_date)
+        async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session):
+            if isinstance(scrap_date[0], datetime):
+                self._check_tasks([scrap_date])
+            else:
+                self._check_tasks(scrap_date)
+
             if self.new_scrap_date_list is None:
                 print("Dataset downloaded")
             else:

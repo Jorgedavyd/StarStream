@@ -22,16 +22,20 @@ class Satellite:
     date_sampling: Union[timedelta, relativedelta]
     format: str
 
-    async def _check_tasks(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], *args, **kwargs) -> None: raise NotImplemented("check tasks not implemented")
+    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]], *args, **kwargs) -> None: raise NotImplemented("check tasks not implemented")
 
     async def _download_url(self, *args, **kwargs) -> None: raise NotImplemented("Preprocess not implemented")
 
     def _get_download_tasks(self, session) -> List[Coroutine]:
         return [self._download_url(session, date.str()) for date in self.new_scrap_date_list]
 
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session, *args, **kwargs) -> None:
-        await self._check_tasks(scrap_date, *args, **kwargs)
-        downloading_tasks = self._get_download_tasks(session, *args, **kwargs)
+    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
+        if isinstance(scrap_date[0], datetime):
+            self._check_tasks([scrap_date])
+        else:
+            self._check_tasks(scrap_date)
+
+        downloading_tasks = self._get_download_tasks(session)
         for i in tqdm(range(0, len(downloading_tasks), self.batch_size), desc=f"{self.__class__.__name__}: Downloading..."):
             await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
 
