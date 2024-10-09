@@ -14,7 +14,7 @@ import xarray as xr
 import asyncio
 import os
 import time
-from typing import Coroutine, Tuple, Callable, List, Union
+from typing import Coroutine, Tuple, Callable, List
 from selenium.webdriver.chrome.options import Options
 import os.path as osp
 from bs4 import BeautifulSoup

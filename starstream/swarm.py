@@ -1,4 +1,7 @@
-from .utils import datetime_interval, timedelta_to_freq
+from typing import List, Tuple
+
+from starstream._base import Satellite
+from .utils import StarDate, StarInterval, timedelta_to_freq
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd
@@ -39,30 +42,17 @@ def mag_ion_transform(df: pd.DataFrame):
     return df
 
 
-class SwarmUtils:
+class SwarmUtils(Satellite):
     spacecrafts = ["A", "B", "C"]
     base_url = "https://swarm-diss.eo.esa.int/"
+    new_scrap_date_list: List[StarDate] = []
 
-    def check_tasks(self, scrap_date: tuple[datetime, datetime]):
-        self.new_scrap_date_list = [
-            datetime.strptime(date, "%Y%m%d")
-            for date in datetime_interval(
-                scrap_date[0], scrap_date[-1], timedelta(days=1)
-            )
-            if not os.path.exists(self.csv_path(date, "A"))
-        ]
+    def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]):
+        new_scrap_date: StarInterval = StarInterval(scrap_date)
 
-    def data_prep(self, scrap_date: tuple[datetime, datetime], step_size: timedelta):
-        scrap_date = datetime_interval(scrap_date[0], scrap_date[-1], timedelta(days=1))
-        dfs = [
-            pd.read_csv(self.csv_path(date, X))
-            for date in scrap_date
-            for X in self.spacecrafts
-        ]
-        if isinstance(self, SWARM.MAG_ION):
-            # perform transformation
-            dfs = [mag_ion_transform(df) for df in dfs]
-        return pd.concat(dfs).resample(timedelta_to_freq(step_size)).mean()
+        for date in new_scrap_date:
+            if not os.path.exists(self.csv_path(date.str())):
+                self.new_scrap_date_list.append(date)
 
     def downloader_pipeline(self, scrap_date, session):
         self.check_tasks(scrap_date)

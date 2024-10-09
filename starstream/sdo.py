@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
 from tqdm import tqdm
+from numpy._typing import NDArray
+from torch import Tensor
 import aiofiles
 import asyncio
 import glob
