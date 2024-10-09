@@ -1,17 +1,15 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from tqdm import tqdm
 
-from starstream._base import Satellite
+from starstream._base import CSV
 from .utils import (
     StarDate,
-    StarInterval,
     handle_client_connection_error,
     asyncGZ,
 )
 from datetime import timedelta, datetime
 from io import BytesIO
 import xarray as xr
-import asyncio
 import os
 import time
 from typing import Coroutine, Tuple, Callable, List
@@ -30,13 +28,10 @@ __path_func: Callable[[str, str, str, str], str] = (
 
 class DSCOVR:
     @dataclass
-    class __Base(Satellite):
-        batch_size: int
-        root: str
-        level: str
-        csv_path: Callable[[str], str]
-        var: List[str]
-        achronym: str
+    class __Base(CSV):
+        level: str = field(default = 'l1')
+        var: List[str] = field(default = [''])
+        achronym: str = 'sample'
 
         def __post_init__(self) -> None:
             assert self.level == "l2" or self.level == "l1", "Not valid data product level"
@@ -90,18 +85,6 @@ class DSCOVR:
             with open(update_path, "x") as file:
                 file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-        async def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]) -> None:
-            await self._check_update(scrap_date_list)
-            new_scrap_date: StarInterval = StarInterval(
-                scrap_date_list, timedelta(days=1), "%Y%m%d"
-            )
-
-            self.new_scrap_date_list = [
-                date
-                for date in new_scrap_date
-                if not os.path.exists(self.csv_path(date.str()))
-            ]
-
         def _gz_processing(self, gz_file, date: str) -> None:
             dataset = xr.open_dataset(gz_file.read())
             df = dataset.to_dataframe()
@@ -138,8 +121,8 @@ class DSCOVR:
                         url_list.append((url, date))
             return url_list
 
-        def _get_download_tasks(self, session) -> List[Coroutine]:
-            urls_dates = asyncio.run(self._get_urls())
+        async def _get_download_tasks(self, session) -> List[Coroutine]:
+            urls_dates = await self._get_urls()
             return [self._download_url(url, date, session) for url, date in urls_dates]
 
     class FaradayCup(__Base):
@@ -151,7 +134,7 @@ class DSCOVR:
         ) -> None:
             super().__init__(
                 batch_size=batch_size,
-                root=download_path,
+                root_path=download_path,
                 level=level,
                 csv_path=lambda date: __path_func(
                     download_path, "faraday", level, date
@@ -169,7 +152,7 @@ class DSCOVR:
         ) -> None:
             super().__init__(
                 batch_size=batch_size,
-                root=download_path,
+                root_path=download_path,
                 level=level,
                 csv_path=lambda date: __path_func(
                     download_path, level, "magnetometer", date

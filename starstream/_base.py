@@ -1,6 +1,8 @@
+from dataclasses import dataclass, field
 from dateutil.relativedelta import relativedelta
 from .utils import (
     StarDate,
+    coroutine_handler,
     StarInterval,
     handle_client_connection_error,
     timedelta_to_freq,
@@ -20,20 +22,18 @@ import aiofiles
 import asyncio
 import os
 
+@dataclass
 class Satellite:
-    new_scrap_date_list: List[StarDate] = []
-    batch_size: int
-    csv_path: Callable[[str], str]
-    date_sampling: Union[timedelta, relativedelta]
-    format: str
+    root_path: str = field(default = './data/')
+    batch_size: int = field(default = 10)
+    date_sampling: Union[timedelta, relativedelta] = field(default = timedelta(days = 1))
+    format: str = field(default = '%Y%m%d')
+    new_scrap_date_list: List[StarDate] = field(default = [])
+    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None: raise NotImplemented("Fetch not defined")
 
-    def _check_tasks(
-        self, scrap_date: List[Tuple[datetime, datetime]], *args, **kwargs
-    ) -> None:
-        raise NotImplemented("check tasks not implemented")
-
-    async def _download_url(self, *args, **kwargs) -> None:
-        raise NotImplemented("Preprocess not implemented")
+@dataclass
+class CSV(Satellite):
+    csv_path: Callable[[str], str] = field(default = lambda x: x)
 
     def _get_download_tasks(self, session) -> List[Coroutine]:
         return [
@@ -46,16 +46,28 @@ class Satellite:
         session,
     ) -> None:
         if isinstance(scrap_date[0], datetime):
-            self._check_tasks([scrap_date])
-        else:
-            self._check_tasks(scrap_date)
-
-        downloading_tasks = self._get_download_tasks(session)
+            scrap_date = [scrap_date]
+        await coroutine_handler(self._check_tasks, scrap_date)
+        download_tasks: List[Coroutine] = await coroutine_handler(self._get_download_tasks, session)
         for i in tqdm(
-            range(0, len(downloading_tasks), self.batch_size),
+            range(0, len(download_tasks), self.batch_size),
             desc=f"{self.__class__.__name__}: Downloading...",
         ):
-            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
+            await asyncio.gather(*download_tasks[i : i + self.batch_size])
+
+        if func:=getattr(self, '_get_preprocessing_tasks', False):
+            preprocessing_tasks: List[Coroutine] = await coroutine_handler(func, session)
+            for i in tqdm(
+                range(0, len(preprocessing_tasks), self.batch_size),
+                desc=f"{self.__class__.__name__}: Preprocessing..."):
+                await asyncio.gather(*preprocessing_tasks[i : i + self.batch_size])
+
+        if func:=getattr(self, '_preprocess', False):
+            for date in tqdm(
+                self.new_scrap_date_list,
+                desc=f"{self.__class__.__name__}: Preprocessing...",
+            ):
+                await coroutine_handler(func, date.str())
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         return pl.read_csv(self.csv_path(date), try_parse_dates=True)
@@ -117,14 +129,29 @@ class Satellite:
             df.filter(
                 (pl.col("time") > new_scrap_date.interval[0].polars())
                 & (pl.col("time") < new_scrap_date.interval[-1].polars())
-            ).group_by_dynamic("time", timedelta_to_freq(resolution)).agg(
+            ).group_by_dynamic("time", every = timedelta_to_freq(resolution)).agg(
                 pl.col("*")
             ).mean()
             out_list.append(df)
         return out_list
 
+    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]], resolution: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = '%Y%m%d') -> None:
+        if func:=getattr(self, '_check_updates', False):
+            func(scrap_date)
 
-class CDAWeb(Satellite):
+        new_scrap_date: StarInterval = StarInterval(scrap_date)
+
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
+        ):
+            if not os.path.exists(self.csv_path(date.str())):
+                self.new_scrap_date_list.append(date)
+
+        if self.new_scrap_date_list:
+            os.makedirs(self.root_path, exist_ok=True)
+
+class CDAWeb(CSV):
     phy_obs: List[str]
     variables: List[str]
     url: Callable[[str], str]
@@ -139,41 +166,39 @@ class CDAWeb(Satellite):
             self.root_path, f"{date}.cdf"
         )
 
-    def preprocess(self, date: str):
+    def _preprocess(self, date: str):
         with pycdf.CDF(self.cdf_path(date)) as cdf_file:
-            epoch = cdf_file["Epoch"][:].reshape(-1, 1)
-            data_func: Callable[[str], NDArray] = lambda var: cdf_file[var][:].astype(
-                np.float32
-            )
-            sample_data: Tuple[int, ...] = cdf_file[self.phy_obs[0]][:].shape
-
-            if len(sample_data) == 1:
-                data_columns = [data_func(var).reshape(-1, 1) for var in self.phy_obs]
-            elif len(sample_data) == 2:
-                data_columns = [data_func(var) for var in self.phy_obs]
+            epoch = cdf_file["Epoch"][:]
+            if epoch is not None:
+                epoch = epoch.reshape(-1, 1)
             else:
-                ic(sample_data)
-                raise ValueError("Found singularity")
+                raise ValueError("Epoch is None")
 
-        data_columns.extend(epoch)
-        data: NDArray = np.concatenate(data_columns, axis=1)
-        columns: List[str] = ["time"] + self.variables
+            def data_func(var: str) -> NDArray:
+                file = cdf_file[var][:]
+                if file is not None:
+                    return file.astype(np.float32)
+                else:
+                    raise ValueError("Data is None")
 
-        pl.from_numpy(data, schema=columns, orient="col").write_csv(self.csv_path(date))
-        os.remove(self.cdf_path(date))
+            sample =cdf_file[self.phy_obs[0]][:]
+            if sample is not None:
+                sample_shape: Tuple[int, ...] = sample.shape
+                ic(sample_shape)
+                if len(sample_shape) == 1:
+                    data_columns = [data_func(var).reshape(-1, 1) for var in self.phy_obs]
+                elif len(sample_shape) == 2:
+                    data_columns = [data_func(var) for var in self.phy_obs]
+                else:
+                    raise ValueError("Found singularity")
+                data_columns.extend(epoch)
+                data: NDArray = np.concatenate(data_columns, axis=1)
+                columns: List[str] = ["time"] + self.variables
 
-    def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]):
-        new_scrap_date: StarInterval = StarInterval(scrap_date_list)
-
-        for date in tqdm(
-            new_scrap_date,
-            desc=f"{self.__class__.__name__}: Looking for missing dates...",
-        ):
-            if not os.path.exists(self.csv_path(date.str())):
-                self.new_scrap_date_list.append(date)
-
-        if self.new_scrap_date_list:
-            os.makedirs(self.root_path, exist_ok=True)
+                pl.from_numpy(data, schema=columns, orient="col").write_csv(self.csv_path(date))
+                os.remove(self.cdf_path(date))
+            else:
+                ValueError("Data is None")
 
     @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
     async def _download_url(self, session, date: StarDate) -> None:
@@ -194,26 +219,3 @@ class CDAWeb(Satellite):
                     return
                 async with aiofiles.open(self.cdf_path(date.str()), "wb") as f:
                     await f.write(cdf_data)
-
-    async def fetch(
-        self,
-        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-        session,
-        preprocess: bool = True
-    ) -> None:
-        if isinstance(scrap_date[0], datetime):
-            self._check_tasks([scrap_date])
-        else:
-            self._check_tasks(scrap_date)
-        downloading_tasks = self._get_download_tasks(session)
-        for i in tqdm(
-            range(0, len(downloading_tasks), self.batch_size),
-            desc=f"{self.__class__.__name__}: Downloading...",
-        ):
-            await asyncio.gather(*downloading_tasks[i : i + self.batch_size])
-        if preprocess is not None:
-            for date in tqdm(
-                self.new_scrap_date_list,
-                desc=f"{self.__class__.__name__}: Preprocessing...",
-            ):
-                self.preprocess(date.str())

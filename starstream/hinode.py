@@ -1,6 +1,5 @@
 from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
-from numpy._typing import NDArray
 from tqdm import tqdm
 from .utils import (
     StarDate,
@@ -10,7 +9,6 @@ from .utils import (
 )
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from torch import Tensor
 import asyncio
 import glob
 import aiofiles
@@ -22,7 +20,7 @@ __all__ = ["Hinode"]
 
 
 class Hinode:
-    class XRT:
+    class XRT(StarImage):
         def __init__(self, download_path: str = "./data/Hinode/XRT", batch_size: int = 1) -> None:
             self.batch_size: int = batch_size
             self.root: str = download_path
@@ -109,10 +107,8 @@ class Hinode:
 
         async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None:
             if isinstance(scrap_date[0], datetime):
-                self._check_tasks([scrap_date])
-            else:
-                self._check_tasks(scrap_date)
-
+                scrap_date = [scrap_date]
+            self._check_tasks(scrap_date)
             if len(self.new_scrap_date_list) == 0:
                 print(f"{self.__class__.__name__} Already downloaded!")
             else:
@@ -128,14 +124,6 @@ class Hinode:
         def get_hour_images(self, date: StarDate) -> List[str]:
             query_c = "*" + "_".join(date.str().split("-"))[:-4] + "**"
             return glob.glob(self.path(query_c))
-
-        def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-            paths: List[str] = self._path_prep(scrap_date)
-            return asyncio.run(StarImage.get_numpy(paths))
-
-        def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-            paths: List[str] = self._path_prep(scrap_date)
-            return asyncio.run(StarImage.get_torch(paths))
 
         def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]):
             new_scrap_date: StarInterval = StarInterval(

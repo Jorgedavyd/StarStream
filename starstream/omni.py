@@ -1,10 +1,7 @@
 from dateutil.relativedelta import relativedelta
-from .utils import StarInterval
 from typing import List, Tuple
 from datetime import datetime
 from ._base import CDAWeb
-from tqdm import tqdm
-import os
 
 __all__ = ["OMNI"]
 
@@ -32,15 +29,5 @@ class OMNI(CDAWeb):
         ]
         self.variables = self.phy_obs
 
-    def _check_tasks(self, scrap_date_list: List[Tuple[datetime, datetime]]):
-        new_scrap_date: StarInterval = StarInterval(scrap_date_list, relativedelta(months = 1), '%Y%m')
-
-        for date in tqdm(
-            new_scrap_date,
-            desc=f"{self.__class__.__name__}: Looking for missing dates...",
-        ):
-            if not os.path.exists(self.csv_path(date.str())):
-                self.new_scrap_date_list.append(date)
-
-        if self.new_scrap_date_list:
-            os.makedirs(self.root_path, exist_ok=True)
+    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+        return super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')

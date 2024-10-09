@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 from dateutil.relativedelta import relativedelta
 from .utils import StarInterval, asyncTAR, handle_client_connection_error
 from datetime import timedelta, datetime
-from ._base import CDAWeb, Satellite
+from ._base import CDAWeb, CSV
 from io import BytesIO
 import polars as pl
 import aiofiles
@@ -79,7 +79,7 @@ class SOHO:
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/soho/erne/hed_l2-1min/{date[:4]}/soho_erne-hed_l2-1min_{date}_v01.cdf"
             )
 
-    class COSTEP_EPHIN(Satellite):
+    class COSTEP_EPHIN(CSV):
         date_sampling: Union[timedelta, relativedelta] = relativedelta(years=1)
         format: str = "%Y"
 

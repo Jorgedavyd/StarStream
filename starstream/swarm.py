@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
-from starstream._base import Satellite
-from .utils import StarDate, StarInterval, timedelta_to_freq
+from starstream._base import CSV
+from .utils import StarDate, StarInterval
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd
@@ -42,7 +42,7 @@ def mag_ion_transform(df: pd.DataFrame):
     return df
 
 
-class SwarmUtils(Satellite):
+class SwarmUtils(CSV):
     spacecrafts = ["A", "B", "C"]
     base_url = "https://swarm-diss.eo.esa.int/"
     new_scrap_date_list: List[StarDate] = []

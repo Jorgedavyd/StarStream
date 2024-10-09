@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import functools
-
 from numpy._typing import NDArray
 from aiohttp import ClientConnectionError
 from dateutil.relativedelta import relativedelta
@@ -14,7 +13,6 @@ import tarfile
 import gzip
 from inspect import iscoroutinefunction
 from typing import Dict, Optional, Tuple, List, Any, Union
-import aiohttp
 from dataclasses import dataclass, field
 from itertools import chain
 import polars as pl
@@ -25,9 +23,7 @@ import io
 from concurrent.futures import ThreadPoolExecutor
 import torch
 from torch import Tensor
-
-__all__ = ["DataDownloading"]
-
+from inspect import iscoroutinefunction
 
 ## Asynchronous processing
 async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
@@ -185,23 +181,6 @@ def mega_interval(*args) -> List[StarDate]:
     return [*chain.from_iterable([StarInterval(*arg) for arg in args])]
 
 
-def DataDownloading(
-    sat_objs: Union[List, Any],
-    scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-) -> None:
-    asyncio.run(downloader(sat_objs, scrap_date))
-
-
-async def downloader(
-    sat_objs: Union[List, Any],
-    scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-) -> None:
-    async with aiohttp.ClientSession() as session:
-        await asyncio.gather(
-            *[satellite(scrap_date, session) for satellite in sat_objs]
-        )
-
-
 ## Decorator for connection error
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="exp"
@@ -237,13 +216,13 @@ def handle_client_connection_error(
 
 
 class StarImage:
-    @staticmethod
-    def process_image(content: bytes):
+    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
+
+    def process_image(self, content: bytes):
         image = Image.open(io.BytesIO(content))
         return np.array(image)
 
-    @staticmethod
-    async def load_npy_from_png(path: str):
+    async def load_npy_from_png(self, path: str) -> NDArray:
         async with aiofiles.open(path, mode="rb") as file:
             content = await file.read()
 
@@ -253,15 +232,30 @@ class StarImage:
 
         return array
 
-    @staticmethod
-    async def get_numpy(paths: List[str]) -> NDArray:
+    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        paths: List[str] = self._path_prep(scrap_date)
         return np.stack(
             await asyncio.gather(
-                *[StarImage.load_npy_from_png(path) for path in paths]
+                *[self.load_npy_from_png(path) for path in paths]
             ),
             axis=0,
         )
 
-    @staticmethod
-    async def get_torch(paths: List[str]) -> Tensor:
-        return torch.from_numpy(await StarImage.get_numpy(paths))
+    async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        return torch.from_numpy(await self.async_numpy(scrap_date))
+
+    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        return asyncio.run(self.async_torch(scrap_date))
+
+    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        return asyncio.run(self.async_numpy(scrap_date))
+
+
+## Async handling
+
+async def coroutine_handler(function: Any, *args):
+    if iscoroutinefunction(function):
+        await function(*args)
+    else:
+        function(*args)
+

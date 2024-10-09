@@ -2,10 +2,8 @@ from starstream.utils import StarDate, StarImage, StarInterval, handle_client_co
 from typing import Callable, List, Tuple, Coroutine, Union
 from datetime import datetime, timedelta
 from starstream._base import Satellite
-from numpy._typing import NDArray
 from bs4 import BeautifulSoup
 from itertools import chain
-from torch import Tensor
 from tqdm import tqdm
 import os.path as osp
 import aiofiles
@@ -18,7 +16,7 @@ import os
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
 
 
-class GOES16(Satellite):
+class GOES16(Satellite, StarImage):
     def __init__(
         self,
         instrument: str,
@@ -139,14 +137,6 @@ class GOES16(Satellite):
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
 
-
-    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-        paths: List[str] = self._path_prep(scrap_date)
-        return asyncio.run(StarImage.get_numpy(paths))
-
-    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-        paths: List[str] = self._path_prep(scrap_date)
-        return asyncio.run(StarImage.get_torch(paths))
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         new_scrap_date: StarInterval = StarInterval(

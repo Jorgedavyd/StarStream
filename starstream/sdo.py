@@ -1,5 +1,5 @@
 from astropy.io import fits
-from starstream._base import Satellite
+from starstream._base import CSV, Satellite
 from .utils import (
     StarDate,
     StarImage,
@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
 from tqdm import tqdm
-from numpy._typing import NDArray
-from torch import Tensor
 import aiofiles
 import asyncio
 import glob
@@ -37,7 +35,7 @@ def date_to_day_of_year(date_string):
     return date_string[:4] + day_of_year_string
 
 
-class Base(Satellite):
+class Base(Satellite, StarImage):
     async def fetch(
         self,
         scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
@@ -79,17 +77,8 @@ class Base(Satellite):
                 ]
             )
 
-    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-        paths: List[str] = self._path_prep(scrap_date)
-        return asyncio.run(StarImage.get_numpy(paths))
-
-    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-        paths: List[str] = self._path_prep(scrap_date)
-        return asyncio.run(StarImage.get_torch(paths))
-
-
 class SDO:
-    class AIA_HR(Satellite):
+    class AIA_HR(CSV):
         min_step_size: timedelta = timedelta(seconds=36)
         batch_size = 10
         wavelengths: list = [
@@ -291,7 +280,7 @@ class SDO:
                 )
             ]
 
-    class EVE(Satellite):
+    class EVE(CSV):
         def __init__(
             self,
             download_path: str = "./data/SDO/EVE",
@@ -304,20 +293,20 @@ class SDO:
             self.url: Callable[[str], str] = (
                 lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_008.fit.gz"
             )
-            self.eve_csv_path: Callable[[str], str] = lambda date: osp.join(
+            self.csv_path: Callable[[str], str] = lambda date: osp.join(
                 download_path, f"{date}.csv"
             )
 
-            self.eve_fits_gz_path: Callable[[str], str] = lambda date: osp.join(
+            self.gz_path: Callable[[str], str] = lambda date: osp.join(
                 download_path, f"{date}.fits.gz"
             )
-            self.eve_fits_path: Callable[[str], str] = lambda date: osp.join(
+            self.fits_path: Callable[[str], str] = lambda date: osp.join(
                 download_path, f"{date}.fits"
             )
             os.makedirs(download_path, exist_ok=True)
 
         def to_csv(self, date: str) -> None:
-            path: str = self.eve_fits_path(date)
+            path: str = self.fits_path(date)
             with fits.open(path) as hdul:
                 df: pl.DataFrame = pl.DataFrame(hdul[1].data)
 
@@ -339,8 +328,8 @@ class SDO:
             df = df.select(["datetime", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
             df = df.set_sorted("datetime")
 
-            if getattr(self, "resolution") is not None:
-                df = df.groupby_dynamic("datetime", every="1m").agg(
+            if resolution:=getattr(self, "resolution", False):
+                df = df.groupby_dynamic("datetime", every= timedelta_to_freq(resolution)).agg(
                     [
                         pl.col("CH_18").mean(),
                         pl.col("CH_26").mean(),
@@ -351,26 +340,11 @@ class SDO:
                     ]
                 )
 
-            df.write_csv(self.eve_csv_path(date))
-            os.remove(self.eve_fits_path(date))
-
-        def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-            new_scrap_date: StarInterval = StarInterval(scrap_date)
-            for date in new_scrap_date:
-                if not os.path.exists(self.eve_csv_path(date.str())):
-                    self.new_scrap_date_list.append(date)
-
-        async def download_task(self, session) -> None:
-            for i in range(0, len(self.new_scrap_date_list), self.batch_size):
-                await asyncio.gather(
-                    *[
-                        self.download_url(session, day.str())
-                        for day in self.new_scrap_date_list[i : i + self.batch_size]
-                    ]
-                )
+            df.write_csv(self.csv_path(date))
+            os.remove(self.fits_path(date))
 
         async def to_fits(self, date: str) -> None:
-            path: str = self.eve_fits_gz_path(date)
+            path: str = self.gz_path(date)
             gzip_file = gzip.open(path)
             fits_file = gzip_file.read()
             gzip_file.close()
@@ -378,39 +352,17 @@ class SDO:
             async with aiofiles.open(path[:-3], "xb") as file:
                 await file.write(fits_file)
 
-        async def preprocessing(self) -> None:
-            await asyncio.gather(
-                *[self.to_fits(date.str()) for date in self.new_scrap_date_list]
-            )
-            for date in tqdm(
-                self.new_scrap_date_list,
-                desc=f"{self.__class__.__name__}: Preprocessing...",
-            ):
-                self.to_csv(date.str())
+        async def preprocess(self, date: StarDate) -> None:
+            await self.to_fits(date.str())
+            self.to_csv(date.str())
 
-        async def download_url(self, session, day: str) -> None:
+        def _get_preprocessing_tasks(self) -> List[Coroutine]:
+            return [self.preprocess(date) for date in self.new_scrap_date_list]
+
+        async def download_url(self, session, date: StarDate) -> None:
+            day = date.str()
             url = self.url(day)
             async with session.get(url, ssl=False) as response:
                 data = await response.read()
-                async with aiofiles.open(self.eve_fits_gz_path(day), "wb") as file:
+                async with aiofiles.open(self.gz_path(day), "wb") as file:
                     await file.write(data)
-
-        def get_preprocessing_tasks(self, session) -> List[Coroutine]:
-            return [
-                self.download_url(session, date.str())
-                for date in self.new_scrap_date_list
-            ]
-
-        async def fetch(
-            self,
-            scrap_date: Union[
-                List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
-            ],
-            session,
-        ):
-            if isinstance(scrap_date[0], datetime):
-                self._check_tasks([scrap_date])
-            else:
-                self._check_tasks(scrap_date)
-            await self.download_task(session)
-            await self.preprocessing()

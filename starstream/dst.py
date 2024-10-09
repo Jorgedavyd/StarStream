@@ -1,16 +1,14 @@
 from starstream._base import CDAWeb
 from .utils import (
-    StarInterval,
+    StarDate,
     handle_client_connection_error,
     to_polars,
 )
 from typing import List, Tuple
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
-from tqdm import tqdm
 import polars as pl
 import aiofiles
-import os
 
 __all__ = ["Dst"]
 
@@ -35,20 +33,11 @@ class Dst(CDAWeb):
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_final/{month}/dst{month[2:]}.for.request"
 
     def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        new_scrap_date: StarInterval = StarInterval(
-            scrap_date, relativedelta(months=1), "%Y%m"
-        )
-        history: List[str] = [
-            os.path.join(self.root_path, filename) for filename in os.listdir(self.root_path)
-        ]
-
-        for month in tqdm(new_scrap_date, desc = f"{self.__class__.__name__}: Looking for missing dates..."):
-            if self.csv_path(month.str()) not in history:
-                self.new_scrap_date_list.append(month)
+        return super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
-    async def _download_url(self, month, session):
-        async with session.get(self._date_to_url(month), ssl=False) as request:
+    async def _download_url(self, session, month: StarDate) -> None:
+        async with session.get(self._date_to_url(month.str()), ssl=False) as request:
             data = await request.text()
             data = data.split("\n")[:-2]
             out_list: List[str] = []
@@ -60,7 +49,7 @@ class Dst(CDAWeb):
 
             out_list.insert(0, "dst_index")
 
-            async with aiofiles.open(self.csv_path(month), "w") as f:
+            async with aiofiles.open(self.csv_path(month.str()), "w") as f:
                 for line in out_list:
                     await f.write(line + ",\n")
 

@@ -1,3 +1,4 @@
+from .downloader import *
 from .dst import *
 from .omni import *
 from .dscovr import *
@@ -11,7 +12,6 @@ from .swarm import *
 from .wind import *
 from .goes import *
 from ._version import __version__
-from .utils import *
 
 __author__ = "Jorgedavyd"
 __email__ = "jorged.encyso@gmail.com"

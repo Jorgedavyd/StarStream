@@ -7,13 +7,19 @@ def runtime(object) -> None:
     DataDownloading(obj, scrap_date_list)
     scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
     try:
-        obj.data_prep(scrap_date, timedelta(hours=1))
+        obj.get_numpy(scrap_date, timedelta(hours=1))
+        obj.get_torch(scrap_date, timedelta(hours=1))
     except TypeError:
-        obj.data_prep(scrap_date)
+        obj.get_numpy(scrap_date)
+        obj.get_torch(scrap_date)
 
 
-def test_dscovr() -> None:
-    runtime(DSCOVR)
+def test_dscovr_mg() -> None:
+    runtime(DSCOVR.FaradayCup)
+
+
+def test_dscovr_fd() -> None:
+    runtime(DSCOVR.Magnetometer)
 
 
 def test_ace_mag() -> None:
@@ -102,5 +108,5 @@ def test_wind() -> None:
     runtime(WIND.MAG)
 
 
-def test_aia_hr() -> None:
+def test_aia_eve() -> None:
     runtime(SDO.EVE)

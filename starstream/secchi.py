@@ -1,13 +1,11 @@
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
-from .utils import StarDate, StarImage, StarInterval, handle_client_connection_error
+from .utils import StarDate, StarInterval, handle_client_connection_error
 from starstream._base import Satellite
 from datetime import datetime, timedelta
-from numpy._typing import NDArray
 from bs4 import BeautifulSoup
 from itertools import chain
 import os.path as osp
 from tqdm import tqdm
-from torch import Tensor
 import aiofiles
 import asyncio
 import glob
@@ -142,14 +140,6 @@ class STEREO_A:
                             == 0
                         ):
                             self.new_scrap_date_list.append(date)
-
-            def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-                paths: List[str] = self._path_prep(scrap_date)
-                return asyncio.run(StarImage.get_numpy(paths))
-
-            def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-                paths: List[str] = self._path_prep(scrap_date)
-                return asyncio.run(StarImage.get_torch(paths))
 
             def _path_prep(
                 self, scrap_date: List[Tuple[datetime, datetime]]
