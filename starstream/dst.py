@@ -12,11 +12,13 @@ import aiofiles
 
 __all__ = ["Dst"]
 
+
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
 
+
 class Dst(CDAWeb):
-    def __init__(self, download_path: str =  "./data/Dst", batch_size: int = 10) -> None:
+    def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
         super().__init__(download_path, batch_size)
 
     def _date_to_url(self, month: str) -> str:
@@ -33,7 +35,7 @@ class Dst(CDAWeb):
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_final/{month}/dst{month[2:]}.for.request"
 
     def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        return super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')
+        return super()._check_tasks(scrap_date, relativedelta(months=1), "%Y%m")
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def _download_url(self, session, month: StarDate) -> None:
@@ -56,7 +58,9 @@ class Dst(CDAWeb):
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         df = pl.read_csv(self.csv_path(date)).get_column("dst_index")
         first_day: datetime = datetime(int(date[:4]), int(date[4:6]), 1)
-        final_day: datetime = first_day + relativedelta(months=1) - timedelta(hours=1)  ## todo
+        final_day: datetime = (
+            first_day + relativedelta(months=1) - timedelta(hours=1)
+        )  ## todo
         start_date = to_polars(first_day)
         end_date = to_polars(final_day)
         full_range = pl.date_range(start=start_date, end=end_date, freq="1h")

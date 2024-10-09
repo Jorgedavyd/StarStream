@@ -1,4 +1,9 @@
-from starstream.utils import StarDate, StarImage, StarInterval, handle_client_connection_error
+from starstream.utils import (
+    StarDate,
+    StarImage,
+    StarInterval,
+    handle_client_connection_error,
+)
 from typing import Callable, List, Tuple, Coroutine, Union
 from datetime import datetime, timedelta
 from starstream._base import Satellite
@@ -44,7 +49,10 @@ class GOES16(Satellite, StarImage):
             scrap_date,
             timedelta(days=1),
         )
-        for date in tqdm(new_scrap_date, desc = f'{self.__class__.__name__}: Looking for missing dates...'):
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
+        ):
             if len(glob.glob(self.path(date.str() + "*"))) == 0:
                 self.new_scrap_date_list.append(date)
 
@@ -52,7 +60,9 @@ class GOES16(Satellite, StarImage):
         return [self.scrap_url(session, date) for date in self.new_scrap_date_list]
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
-    async def scrap_url(self, session, date: StarDate) -> Union[List[Tuple[Union[List[str], None], StarDate]], None]:
+    async def scrap_url(
+        self, session, date: StarDate
+    ) -> Union[List[Tuple[Union[List[str], None], StarDate]], None]:
         url: str = self.url("", date.str())
         async with session.get(url) as request:
             if request.status != 200:
@@ -83,7 +93,7 @@ class GOES16(Satellite, StarImage):
     async def _download_url(self, session, date: str, name: str) -> None:
         url: str = self.url(name, date)
         path: str = self.path(name)
-        async with session.get(url, ssl = False) as request:
+        async with session.get(url, ssl=False) as request:
             data = await request.read()
             async with aiofiles.open(path, "wb") as file:
                 await file.write(data)
@@ -136,7 +146,6 @@ class GOES16(Satellite, StarImage):
             desc=f"Preprocessing for {self.__class__.__name__}",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
-
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         new_scrap_date: StarInterval = StarInterval(

@@ -25,6 +25,7 @@ import torch
 from torch import Tensor
 from inspect import iscoroutinefunction
 
+
 ## Asynchronous processing
 async def asyncCDF(cdf_path: str, processing: Callable, *args) -> Any:
     cdf_file = await asyncio.get_event_loop().run_in_executor(None, pycdf.CDF, cdf_path)
@@ -216,7 +217,8 @@ def handle_client_connection_error(
 
 
 class StarImage:
-    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
+    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+        raise NotImplemented("_path_prep not implemented")
 
     def process_image(self, content: bytes):
         image = Image.open(io.BytesIO(content))
@@ -235,9 +237,7 @@ class StarImage:
     async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
         paths: List[str] = self._path_prep(scrap_date)
         return np.stack(
-            await asyncio.gather(
-                *[self.load_npy_from_png(path) for path in paths]
-            ),
+            await asyncio.gather(*[self.load_npy_from_png(path) for path in paths]),
             axis=0,
         )
 
@@ -253,9 +253,9 @@ class StarImage:
 
 ## Async handling
 
+
 async def coroutine_handler(function: Any, *args):
     if iscoroutinefunction(function):
         await function(*args)
     else:
         function(*args)
-

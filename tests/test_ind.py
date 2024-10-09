@@ -2,6 +2,7 @@ from .input_data import scrap_date_list
 from typing import Tuple
 from starstream import *
 
+
 def runtime(object) -> None:
     obj = object()
     DataDownloading(obj, scrap_date_list)

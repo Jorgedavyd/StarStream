@@ -7,7 +7,9 @@ __all__ = ["OMNI"]
 
 
 class OMNI(CDAWeb):
-    def __init__(self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10) -> None:
+    def __init__(
+        self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10
+    ) -> None:
         super().__init__(download_path, batch_size)
         self.url = (
             lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/omni/hro2_5min/{date[:4]}/omni_hro2_5min_{date}01_v01.cdf"
@@ -30,4 +32,4 @@ class OMNI(CDAWeb):
         self.variables = self.phy_obs
 
     def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        return super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')
+        return super()._check_tasks(scrap_date, relativedelta(months=1), "%Y%m")

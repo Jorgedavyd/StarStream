@@ -26,15 +26,18 @@ __path_func: Callable[[str, str, str, str], str] = (
     lambda root, arg1, arg2, date: osp.join(root, arg1, arg2, f"{date}.csv")
 )
 
+
 class DSCOVR:
     @dataclass
     class __Base(CSV):
-        level: str = field(default = 'l1')
-        var: List[str] = field(default = [''])
-        achronym: str = 'sample'
+        level: str = field(default="l1")
+        var: List[str] = field(default=[""])
+        achronym: str = "sample"
 
         def __post_init__(self) -> None:
-            assert self.level == "l2" or self.level == "l1", "Not valid data product level"
+            assert (
+                self.level == "l2" or self.level == "l1"
+            ), "Not valid data product level"
 
         @staticmethod
         def _to_unix(scrap_date: Tuple[datetime, datetime]) -> List[int]:
@@ -44,7 +47,9 @@ class DSCOVR:
             ]
             return timestamp
 
-        async def _check_update(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+        async def _check_update(
+            self, scrap_date: List[Tuple[datetime, datetime]]
+        ) -> None:
             update_path: str = osp.join(osp.dirname(__file__), f"trivials/update.txt")
             scrap_date = sorted(
                 scrap_date,
@@ -56,7 +61,9 @@ class DSCOVR:
                     date = datetime.strptime(lines[0], "%Y%m%d")
                     if scrap_date[-1][-1] > date:
                         os.remove(update_path)
-                        self._scrap_links((date + timedelta(days=1), scrap_date[-1][-1]))
+                        self._scrap_links(
+                            (date + timedelta(days=1), scrap_date[-1][-1])
+                        )
             except FileNotFoundError:
                 os.makedirs(osp.dirname(update_path), exist_ok=True)
                 self._scrap_links(
@@ -77,7 +84,9 @@ class DSCOVR:
             html = driver.page_source
             driver.quit()
             soup = BeautifulSoup(html, "html.parser")
-            value = soup.find("input", class_="form-control input-sm cursor-text")["value"]
+            value = soup.find("input", class_="form-control input-sm cursor-text")[
+                "value"
+            ]
             url_path = osp.join(osp.dirname(__file__), "trivials/url.txt")
             with open(url_path, "a") as file:
                 file.write(value[5:].replace(" ", "\n") + "\n")
@@ -91,7 +100,9 @@ class DSCOVR:
             dataset.close()
             df.to_csv(self.csv_path(date))
 
-        @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
+        @handle_client_connection_error(
+            default_cooldown=5, max_retries=3, increment="exp"
+        )
         async def _download_url(self, url: str, date: StarDate, session) -> None:
             async with session.get(url, ssl=False) as response:
                 if response.status != 200:
@@ -115,7 +126,9 @@ class DSCOVR:
             ) as file:
                 lines = await file.readlines()
             url_list = []
-            for url in tqdm(lines, desc=f"{self.__class__.__name__}: Getting the URLs..."):
+            for url in tqdm(
+                lines, desc=f"{self.__class__.__name__}: Getting the URLs..."
+            ):
                 for date in self.new_scrap_date_list:
                     if date.str() + "000000" in url and self.achronym in url:
                         url_list.append((url, date))

@@ -77,6 +77,7 @@ class Base(Satellite, StarImage):
                 ]
             )
 
+
 class SDO:
     class AIA_HR(CSV):
         min_step_size: timedelta = timedelta(seconds=36)
@@ -328,8 +329,10 @@ class SDO:
             df = df.select(["datetime", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
             df = df.set_sorted("datetime")
 
-            if resolution:=getattr(self, "resolution", False):
-                df = df.groupby_dynamic("datetime", every= timedelta_to_freq(resolution)).agg(
+            if resolution := getattr(self, "resolution", False):
+                df = df.groupby_dynamic(
+                    "datetime", every=timedelta_to_freq(resolution)
+                ).agg(
                     [
                         pl.col("CH_18").mean(),
                         pl.col("CH_26").mean(),
