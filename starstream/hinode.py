@@ -1,6 +1,8 @@
 from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
 from tqdm import tqdm
+
+from starstream._base import Satellite
 from .utils import (
     StarDate,
     StarImage,
@@ -22,19 +24,19 @@ __all__ = ["Hinode"]
 class Hinode:
     class XRT(StarImage):
         def __init__(self, download_path: str = "./data/Hinode/XRT", batch_size: int = 1) -> None:
-            self.batch_size: int = batch_size
-            self.root: str = download_path
+            super().__init__(
+                batch_size = batch_size,
+                root_path = download_path,
+            )
             self.path: Callable[[str], str] = lambda name: osp.join(
-                self.root, f"{name}.fits"
+                self.root_path, f"{name}.fits"
             )
             self.scrap_path: Callable[[str], str] = lambda name: osp.join(
-                self.root, f"{name}.fits"
-            ) ## rvisar
-
+                self.root_path, f"{name}.fits"
+            )
             self.url: Callable[[str, str], str] = (
                 lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"
             )
-            os.makedirs(self.root, exist_ok=True)
 
         def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             new_scrap_date: StarInterval = StarInterval(

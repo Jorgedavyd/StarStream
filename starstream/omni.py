@@ -29,5 +29,5 @@ class OMNI(CDAWeb):
         ]
         self.variables = self.phy_obs
 
-    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        return super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')
+    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+        return await super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')

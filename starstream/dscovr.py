@@ -12,29 +12,29 @@ from io import BytesIO
 import xarray as xr
 import os
 import time
-from typing import Coroutine, Tuple, Callable, List
+from typing import Coroutine, Tuple, List
 from selenium.webdriver.chrome.options import Options
 import os.path as osp
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import chromedriver_binary
+from icecream import ic
 import aiofiles
-
 __all__ = ["DSCOVR"]
 
-__path_func: Callable[[str, str, str, str], str] = (
-    lambda root, arg1, arg2, date: osp.join(root, arg1, arg2, f"{date}.csv")
-)
 
 class DSCOVR:
     @dataclass
     class __Base(CSV):
-        level: str = field(default = 'l1')
-        var: List[str] = field(default = [''])
-        achronym: str = 'sample'
+        level: str = 'l1'
+        achronym: str = None
 
         def __post_init__(self) -> None:
             assert self.level == "l2" or self.level == "l1", "Not valid data product level"
+            assert (self.achronym is not None), "Achronym not passed"
+
+        def path_func(self, root, arg1, arg2, date) -> str:
+            return osp.join(root, arg1, arg2, f"{date}.csv")
 
         @staticmethod
         def _to_unix(scrap_date: Tuple[datetime, datetime]) -> List[int]:
@@ -55,7 +55,6 @@ class DSCOVR:
                     lines = await file.readlines()
                     date = datetime.strptime(lines[0], "%Y%m%d")
                     if scrap_date[-1][-1] > date:
-                        os.remove(update_path)
                         self._scrap_links((date + timedelta(days=1), scrap_date[-1][-1]))
             except FileNotFoundError:
                 os.makedirs(osp.dirname(update_path), exist_ok=True)
@@ -82,14 +81,17 @@ class DSCOVR:
             with open(url_path, "a") as file:
                 file.write(value[5:].replace(" ", "\n") + "\n")
             update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
+            os.remove(update_path)
             with open(update_path, "x") as file:
                 file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-        def _gz_processing(self, gz_file, date: str) -> None:
+        def _gz_processing(self, gz_file) -> None:
             dataset = xr.open_dataset(gz_file.read())
             df = dataset.to_dataframe()
             dataset.close()
-            df.to_csv(self.csv_path(date))
+            df = df.reset_index(drop = False)
+            df = df.rename(columns = {'time': 'date'})
+            return df
 
         @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
         async def _download_url(self, url: str, date: StarDate, session) -> None:
@@ -107,7 +109,8 @@ class DSCOVR:
                         )
                         self.new_scrap_date_list.remove(date)
                         return
-                    await asyncGZ(BytesIO(data), self._gz_processing, url, date)
+                    df = await asyncGZ(BytesIO(data), self._gz_processing)
+                    df.to_csv(self.csv_path(date.str()), index = False)
 
         async def _get_urls(self) -> List[Tuple[str, StarDate]]:
             async with aiofiles.open(
@@ -136,10 +139,9 @@ class DSCOVR:
                 batch_size=batch_size,
                 root_path=download_path,
                 level=level,
-                csv_path=lambda date: __path_func(
+                csv_path=lambda date: self.path_func(
                     download_path, "faraday", level, date
                 ),
-                var=["proton_density", "proton_speed", "proton_temperature"],
                 achronym="fc1" if level == "l1" else "fm1",
             )
 
@@ -147,16 +149,15 @@ class DSCOVR:
         def __init__(
             self,
             download_path: str = "./data/DSCOVR",
-            batch_size: int = 15,
-            level: str = "l1",
+            batch_size: int = 10,
+            level: str = "l2",
         ) -> None:
             super().__init__(
                 batch_size=batch_size,
                 root_path=download_path,
                 level=level,
-                csv_path=lambda date: __path_func(
+                csv_path=lambda date: self.path_func(
                     download_path, level, "magnetometer", date
                 ),
-                var=["bx_gsm", "by_gsm", "bz_gsm", "bt"],
                 achronym="mg1" if level == "l1" else "m1m",
             )

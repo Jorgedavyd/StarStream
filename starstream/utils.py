@@ -149,7 +149,7 @@ def interval_time(
 ) -> List[StarDate]:
     current_time = init.date
     dates = []
-    while current_time < end.date:
+    while current_time <= end.date:
         dates.append(StarDate(current_time, init.format))
         current_time += resolution
     return dates
@@ -215,7 +215,12 @@ def handle_client_connection_error(
     return decorator
 
 
+@dataclass
 class StarImage:
+    new_scrap_date_list: List[StarDate] = field(default_factory = list)
+    root_path: str = field(default = './data')
+    batch_size: int = field(default = 10)
+
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
 
     def process_image(self, content: bytes):
@@ -253,9 +258,9 @@ class StarImage:
 
 ## Async handling
 
-async def coroutine_handler(function: Any, *args):
+async def coroutine_handler(function: Callable[..., Any], *args: Any) -> Any:
     if iscoroutinefunction(function):
-        await function(*args)
+        return await function(*args)
     else:
-        function(*args)
+        return function(*args)
 

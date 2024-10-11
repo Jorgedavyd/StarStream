@@ -12,7 +12,6 @@ from datetime import timedelta, datetime
 from numpy._typing import NDArray
 from spacepy import pycdf
 from torch import Tensor
-from icecream import ic
 from tqdm import tqdm
 import os.path as osp
 import polars as pl
@@ -20,6 +19,7 @@ import pandas as pd
 import numpy as np
 import aiofiles
 import asyncio
+import torch
 import os
 
 @dataclass
@@ -28,17 +28,16 @@ class Satellite:
     batch_size: int = field(default = 10)
     date_sampling: Union[timedelta, relativedelta] = field(default = timedelta(days = 1))
     format: str = field(default = '%Y%m%d')
-    new_scrap_date_list: List[StarDate] = field(default = [])
+    new_scrap_date_list: List[StarDate] = field(default_factory = list)
+
     async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None: raise NotImplemented("Fetch not defined")
 
 @dataclass
 class CSV(Satellite):
-    csv_path: Callable[[str], str] = field(default = lambda x: x)
+    csv_path: Callable[[str], str] = lambda x: x
 
     def _get_download_tasks(self, session) -> List[Coroutine]:
-        return [
-            self._download_url(session, date) for date in self.new_scrap_date_list
-        ]
+        return [self._download_url(session, date) for date in self.new_scrap_date_list]
 
     async def fetch(
         self,
@@ -70,7 +69,7 @@ class CSV(Satellite):
                 await coroutine_handler(func, date.str())
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
-        return pl.read_csv(self.csv_path(date), try_parse_dates=True)
+        return pl.read_csv(self.csv_path(date), try_parse_dates = True)
 
     def _get_df(self, scrap_date: StarInterval) -> pl.DataFrame:
         return pl.concat([self._get_df_unit(date.str()) for date in scrap_date])
@@ -79,10 +78,11 @@ class CSV(Satellite):
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
         resolution: timedelta,
+
         method: str,
     ) -> Tuple[Any, ...]:
         list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
-        return tuple([getattr(df, method)() for df in list_df])
+        return tuple([getattr(df.drop("date"), method)() for df in list_df])
 
     def get_numpy(
         self,
@@ -103,7 +103,8 @@ class CSV(Satellite):
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
         resolution: timedelta,
     ) -> Tuple[Tensor, ...]:
-        return self._convert_to_format(scrap_date, resolution, "to_torch")
+        list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
+        return tuple([torch.from_numpy(df.drop("date").to_numpy().astype(np.float32)) for df in list_df])
 
     def get_polars(
         self,
@@ -125,21 +126,20 @@ class CSV(Satellite):
                 [tuple_date], self.date_sampling, self.format
             )
             df: pl.DataFrame = self._get_df(new_scrap_date)
-            df = df.cast({pl.Date: pl.Datetime})
             df.filter(
-                (pl.col("time") > new_scrap_date.interval[0].polars())
-                & (pl.col("time") < new_scrap_date.interval[-1].polars())
-            ).group_by_dynamic("time", every = timedelta_to_freq(resolution)).agg(
+                (pl.col("date") > new_scrap_date.interval[0].polars())
+                & (pl.col("date") < new_scrap_date.interval[-1].polars())
+            ).group_by_dynamic("date", every = timedelta_to_freq(resolution)).agg(
                 pl.col("*")
             ).mean()
             out_list.append(df)
         return out_list
 
-    def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]], resolution: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = '%Y%m%d') -> None:
-        if func:=getattr(self, '_check_updates', False):
-            func(scrap_date)
+    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]], resolution: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = '%Y%m%d') -> None:
+        if func:=getattr(self, '_check_update', False):
+            await coroutine_handler(func, scrap_date)
 
-        new_scrap_date: StarInterval = StarInterval(scrap_date)
+        new_scrap_date: StarInterval = StarInterval(scrap_date, resolution, format)
 
         for date in tqdm(
             new_scrap_date,
@@ -149,7 +149,7 @@ class CSV(Satellite):
                 self.new_scrap_date_list.append(date)
 
         if self.new_scrap_date_list:
-            os.makedirs(self.root_path, exist_ok=True)
+            os.makedirs(self.csv_path("")[:-4], exist_ok=True)
 
 class CDAWeb(CSV):
     phy_obs: List[str]
@@ -157,10 +157,12 @@ class CDAWeb(CSV):
     url: Callable[[str], str]
 
     def __init__(self, download_path: str, batch_size: int = 10) -> None:
-        self.batch_size: int = batch_size
-        self.root_path: str = download_path
-        self.csv_path: Callable[[str], str] = lambda date: osp.join(
-            self.root_path, f"{date}.csv"
+        super().__init__(
+            root_path = download_path,
+            batch_size = batch_size,
+            date_sampling = timedelta(days = 1),
+            format = '%Y%m%d',
+            csv_path = lambda date: osp.join(download_path, f"{date}.csv")
         )
         self.cdf_path: Callable[[str], str] = lambda date: osp.join(
             self.root_path, f"{date}.cdf"
@@ -169,11 +171,9 @@ class CDAWeb(CSV):
     def _preprocess(self, date: str):
         with pycdf.CDF(self.cdf_path(date)) as cdf_file:
             epoch = cdf_file["Epoch"][:]
-            if epoch is not None:
-                epoch = epoch.reshape(-1, 1)
-            else:
+            if epoch is None:
                 raise ValueError("Epoch is None")
-
+            epoch = epoch.astype(np.datetime64).reshape(-1)
             def data_func(var: str) -> NDArray:
                 file = cdf_file[var][:]
                 if file is not None:
@@ -181,24 +181,22 @@ class CDAWeb(CSV):
                 else:
                     raise ValueError("Data is None")
 
-            sample =cdf_file[self.phy_obs[0]][:]
-            if sample is not None:
-                sample_shape: Tuple[int, ...] = sample.shape
-                ic(sample_shape)
-                if len(sample_shape) == 1:
-                    data_columns = [data_func(var).reshape(-1, 1) for var in self.phy_obs]
-                elif len(sample_shape) == 2:
-                    data_columns = [data_func(var) for var in self.phy_obs]
+            data_columns: List[NDArray] = []
+            for var in self.phy_obs:
+                data = cdf_file[var][:]
+                shape = data.shape
+                if len(shape) == 1:
+                    data_columns.append(data_func(var).reshape(-1, 1))
+                elif len(shape) == 2:
+                    data_columns.append(data_func(var))
                 else:
                     raise ValueError("Found singularity")
-                data_columns.extend(epoch)
-                data: NDArray = np.concatenate(data_columns, axis=1)
-                columns: List[str] = ["time"] + self.variables
-
-                pl.from_numpy(data, schema=columns, orient="col").write_csv(self.csv_path(date))
-                os.remove(self.cdf_path(date))
-            else:
-                ValueError("Data is None")
+            data_columns = np.concatenate(data_columns, -1).astype(np.float32).T
+            time = pl.from_numpy(epoch, schema = ['date'], orient = 'col').cast({"date": pl.Datetime})
+            output = pl.from_numpy(data_columns, schema = self.variables, orient = 'col')
+            output = output.with_columns(time)
+            output.write_csv(self.csv_path(date))
+            os.remove(self.cdf_path(date))
 
     @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
     async def _download_url(self, session, date: StarDate) -> None:

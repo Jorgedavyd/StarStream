@@ -13,7 +13,7 @@ import aiofiles
 import os
 from datetime import datetime, timedelta
 import os.path as osp
-
+import polars as pl
 __all__ = ["PROBA_2"]
 
 
@@ -35,21 +35,20 @@ class PROBA_2:
             batch_size: int = 10,
             store_resolution: Optional[timedelta] = None,
         ):
+            super().__init__(
+                root_path = download_path,
+                batch_size = batch_size,
+                csv_path = lambda date: osp.join(download_path, f"{date}.csv")
+            )
             if store_resolution is not None:
                 self.resolution = timedelta_to_freq(store_resolution)
-            self.root: str = download_path
-            self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"http://proba2.oma.be/lyra/data/bsd/{date[:4]}/{date[4:6]}/{date[6:]}/lyra_{date}-000000_lev3_std.fits"
             )
 
             self.fits_path: Callable[[str], str] = lambda date: osp.join(
-                self.root, f"{date}.fits"
+                self.root_path, f"{date}.fits"
             )
-            self.csv_path: Callable[[str], str] = lambda date: osp.join(
-                self.root, f"{date}.csv"
-            )
-            os.makedirs(self.root, exist_ok=True)
 
         @handle_client_connection_error(
             max_retries=3, default_cooldown=5, increment="exp"
@@ -61,20 +60,16 @@ class PROBA_2:
                 async with aiofiles.open(self.fits_path(day), "wb") as f:
                     await f.write(data)
 
-        def get_preprocessing_tasks(self) -> List[Coroutine]:
+        def _get_preprocessing_tasks(self, session) -> List[Coroutine]:
             return [self.preprocess(date) for date in self.new_scrap_date_list]
 
         async def preprocess(self, date: StarDate) -> None:
             day = date.str()
-            async with aiofiles.open(self.csv_path(day), "rb") as f:
+            async with aiofiles.open(self.fits_path(day), "rb") as f:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
                     data = np.stack(hdul[1].data, axis=0)
                     data[:, 1:] = data[:, 1:].astype(np.float32)
                     data[:, 0] = min_to_datetime(data[:, 0], day)
-                    np.savetxt(
-                        self.csv_path(day),
-                        data[:, :-1],
-                        delimiter=",",
-                    )
+                    pl.from_numpy(data[:,:-1]).write_csv(self.csv_path(day))
             os.remove(self.fits_path(day))
