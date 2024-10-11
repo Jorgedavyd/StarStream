@@ -7,6 +7,7 @@ from .utils import (
     handle_client_connection_error,
     timedelta_to_freq,
 )
+from PIL import Image
 from typing import Any, Callable, Coroutine, List, Tuple, Union
 from datetime import timedelta, datetime
 from numpy._typing import NDArray
@@ -21,6 +22,13 @@ import aiofiles
 import asyncio
 import torch
 import os
+import numpy as np
+from PIL import Image
+import aiofiles
+import io
+from concurrent.futures import ThreadPoolExecutor
+from torch import Tensor
+import torch
 
 @dataclass
 class Satellite:
@@ -135,11 +143,11 @@ class CSV(Satellite):
             out_list.append(df)
         return out_list
 
-    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]], resolution: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = '%Y%m%d') -> None:
+    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
         if func:=getattr(self, '_check_update', False):
             await coroutine_handler(func, scrap_date)
 
-        new_scrap_date: StarInterval = StarInterval(scrap_date, resolution, format)
+        new_scrap_date: StarInterval = StarInterval(scrap_date, self.date_sampling, self.format)
 
         for date in tqdm(
             new_scrap_date,
@@ -156,12 +164,18 @@ class CDAWeb(CSV):
     variables: List[str]
     url: Callable[[str], str]
 
-    def __init__(self, download_path: str, batch_size: int = 10) -> None:
+    def __init__(
+            self,
+            download_path: str,
+            batch_size: int = 10,
+            date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
+            format: str = '%Y%m%d'
+    ) -> None:
         super().__init__(
             root_path = download_path,
             batch_size = batch_size,
-            date_sampling = timedelta(days = 1),
-            format = '%Y%m%d',
+            date_sampling = date_sampling,
+            format = format,
             csv_path = lambda date: osp.join(download_path, f"{date}.csv")
         )
         self.cdf_path: Callable[[str], str] = lambda date: osp.join(
@@ -217,3 +231,41 @@ class CDAWeb(CSV):
                     return
                 async with aiofiles.open(self.cdf_path(date.str()), "wb") as f:
                     await f.write(cdf_data)
+
+class StarImage(Satellite):
+    def __init__(self, download_path: str, batch_size: int) -> None:
+        super().__init__(download_path, batch_size)
+
+    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
+
+    def process_image(self, content: bytes):
+        image = Image.open(io.BytesIO(content))
+        return np.array(image)
+
+    async def load_npy_from_png(self, path: str) -> NDArray:
+        async with aiofiles.open(path, mode="rb") as file:
+            content = await file.read()
+
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            array = await loop.run_in_executor(pool, StarImage.process_image, content)
+
+        return array
+
+    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        paths: List[str] = self._path_prep(scrap_date)
+        return np.stack(
+            await asyncio.gather(
+                *[self.load_npy_from_png(path) for path in paths]
+            ),
+            axis=0,
+        )
+
+    async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        return torch.from_numpy(await self.async_numpy(scrap_date))
+
+    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+        return asyncio.run(self.async_torch(scrap_date))
+
+    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+        return asyncio.run(self.async_numpy(scrap_date))

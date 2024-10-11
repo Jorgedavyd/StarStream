@@ -1,6 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from tqdm import tqdm
-
 from starstream._base import CSV
 from .utils import (
     StarDate,
@@ -18,10 +17,10 @@ import os.path as osp
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import chromedriver_binary
-from icecream import ic
 import aiofiles
-__all__ = ["DSCOVR"]
+import pandas as pd
 
+__all__ = ["DSCOVR"]
 
 class DSCOVR:
     @dataclass
@@ -85,7 +84,7 @@ class DSCOVR:
             with open(update_path, "x") as file:
                 file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-        def _gz_processing(self, gz_file) -> None:
+        def _gz_processing(self, gz_file) -> pd.DataFrame:
             dataset = xr.open_dataset(gz_file.read())
             df = dataset.to_dataframe()
             dataset.close()

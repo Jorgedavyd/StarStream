@@ -2,7 +2,6 @@ from starstream._base import CSV
 from .utils import (
     StarDate,
     handle_client_connection_error,
-    to_polars,
 )
 from typing import List, Tuple
 from dateutil.relativedelta import relativedelta

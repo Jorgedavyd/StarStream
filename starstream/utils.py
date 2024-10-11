@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import functools
-from numpy._typing import NDArray
 from aiohttp import ClientConnectionError
 from dateutil.relativedelta import relativedelta
 from astropy.io import fits
@@ -16,13 +15,6 @@ from typing import Dict, Optional, Tuple, List, Any, Union
 from dataclasses import dataclass, field
 from itertools import chain
 import polars as pl
-import numpy as np
-from PIL import Image
-import aiofiles
-import io
-from concurrent.futures import ThreadPoolExecutor
-import torch
-from torch import Tensor
 from inspect import iscoroutinefunction
 
 ## Asynchronous processing
@@ -213,47 +205,6 @@ def handle_client_connection_error(
         return wrapper
 
     return decorator
-
-
-@dataclass
-class StarImage:
-    new_scrap_date_list: List[StarDate] = field(default_factory = list)
-    root_path: str = field(default = './data')
-    batch_size: int = field(default = 10)
-
-    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
-
-    def process_image(self, content: bytes):
-        image = Image.open(io.BytesIO(content))
-        return np.array(image)
-
-    async def load_npy_from_png(self, path: str) -> NDArray:
-        async with aiofiles.open(path, mode="rb") as file:
-            content = await file.read()
-
-        loop = asyncio.get_running_loop()
-        with ThreadPoolExecutor() as pool:
-            array = await loop.run_in_executor(pool, StarImage.process_image, content)
-
-        return array
-
-    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-        paths: List[str] = self._path_prep(scrap_date)
-        return np.stack(
-            await asyncio.gather(
-                *[self.load_npy_from_png(path) for path in paths]
-            ),
-            axis=0,
-        )
-
-    async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-        return torch.from_numpy(await self.async_numpy(scrap_date))
-
-    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
-        return asyncio.run(self.async_torch(scrap_date))
-
-    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
-        return asyncio.run(self.async_numpy(scrap_date))
 
 
 ## Async handling

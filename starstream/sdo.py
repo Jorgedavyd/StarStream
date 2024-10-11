@@ -1,13 +1,13 @@
 from astropy.io import fits
-from starstream._base import CSV, Satellite
+from starstream._base import CSV
 from .utils import (
     StarDate,
-    StarImage,
     datetime,
     StarInterval,
     timedelta_to_freq,
     handle_client_connection_error,
 )
+from ._base import StarImage
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -35,16 +35,15 @@ def date_to_day_of_year(date_string):
     return date_string[:4] + day_of_year_string
 
 
-class Base(Satellite, StarImage):
+class Base(StarImage):
     async def fetch(
         self,
         scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
         session,
     ):
         if isinstance(scrap_date[0], datetime):
-            self.check_tasks([scrap_date])
-        else:
-            self.check_tasks(scrap_date)
+            scrap_date = [scrap_date]
+        self.check_tasks(scrap_date)
         await self.batched_download(session)
 
     async def batched_download(self, client) -> None:
@@ -78,10 +77,8 @@ class Base(Satellite, StarImage):
             )
 
 class SDO:
-    class AIA_HR(CSV):
-        min_step_size: timedelta = timedelta(seconds=36)
-        batch_size = 10
-        wavelengths: list = [
+    class AIA_HR(Base):
+        wavelengths: List[str] = [
             "94",
             "131",
             "171",
@@ -94,45 +91,41 @@ class SDO:
             "4500",
         ]
 
+        min_step_size: timedelta = timedelta(seconds = 36)
+
         def __init__(
             self,
-            step_size: timedelta,
             wavelength: Union[str, int],
             download_path: str = "./data/SDO_HR/",
             batch_size: int = 10,
+            resolution: timedelta = timedelta(minutes = 5),
         ) -> None:
-            assert 0 < batch_size <= 10
-            assert (
-                str(wavelength) in self.wavelengths
-            ), f"Not valid wavelength: {self.wavelengths}"
-            assert (
-                step_size > self.min_step_size
-            ), "Not valid step size, extremely high resolution"
-            self.step_size = step_size
+            assert (0 < batch_size <= 10), "Not valid batch_size, should be between 0 and 10"
+            assert (str(wavelength) in self.wavelengths), f"Not valid wavelength: {self.wavelengths}"
+            assert (resolution > self.min_step_size), "Not valid step size, extremely high resolution"
+            self.resolution = resolution
             self.wavelength = wavelength
             self.url = (
                 lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}"
             )
-            self.root_path: str = osp.join(download_path, str(wavelength))
-            self.scrap_path: Callable[[str], str] = lambda date: osp.join(
+            super().__init__(osp.join(download_path, str(wavelength)), batch_size)
+
+            self.jp2_path: Callable[[str], str] = lambda date: osp.join(
                 self.root_path, f"{date}*.jp2"
             )
-            self.jp2_path: Callable[[str], str] = lambda name: osp.join(
-                self.root_path, f"{name}*.jp2"
-            )
+
             self.name = (
                 lambda webname: "-".join(
                     [item.replace("_", "") for item in webname.split("__")[:-1]]
                 )
                 + ".jp2"
             )
-            os.makedirs(self.jp2_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             new_scrap_date: StarInterval = StarInterval(scrap_date)
             for date in new_scrap_date:
-                if len(glob.glob(self.scrap_path(date.str()))) < (
-                    (timedelta(days=1) / self.step_size) - 1
+                if len(glob.glob(self.jp2_path(date.str()))) < (
+                    (timedelta(days=1) / self.resolution) - 1
                 ):
                     self.new_scrap_date_list.append(date)
 
@@ -143,7 +136,7 @@ class SDO:
             names = [name["href"] for name in scrap]
             return [
                 names[i]
-                for i in range(0, len(names), self.step_size // self.min_step_size)
+                for i in range(0, len(names), self.resolution // self.min_step_size)
             ]
 
         @handle_client_connection_error(
@@ -183,29 +176,29 @@ class SDO:
                 await f.write(await response.read())
 
     class AIA_LR(Base):
+        wavelengths: List[str] = [
+            "0094",
+            "0131",
+            "0171",
+            "0193",
+            "0211",
+            "0304",
+            "0335",
+            "1600",
+            "1700",
+            "4500",
+        ]
+
         def __init__(
             self,
             wavelength: str,
             download_path: str = "./data/AIA_LR",
             batch_size: int = 256,
         ) -> None:
-            self.root_path: str = osp.join(download_path, wavelength)
-            self.batch_size: int = batch_size
-            self.wavelengths: list = [
-                "0094",
-                "0131",
-                "0171",
-                "0193",
-                "0211",
-                "0304",
-                "0335",
-                "1600",
-                "1700",
-                "4500",
-            ]
             assert (
                 wavelength in self.wavelengths
             ), f"Not valid wavelength: {self.wavelengths}"
+            super().__init__(osp.join(download_path, wavelength), batch_size)
             self.wavelength: str = wavelength
             self.url: Callable[[str, str], str] = (
                 lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
@@ -220,7 +213,6 @@ class SDO:
             self.name: Callable[[str], str] = (
                 lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
             )
-            os.makedirs(self.jpg_path(""), exist_ok=True)
 
         def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             print(

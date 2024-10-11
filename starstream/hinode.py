@@ -1,11 +1,11 @@
 from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
+from spacepy import os
 from tqdm import tqdm
 
-from starstream._base import Satellite
+from starstream._base import Satellite, StarImage
 from .utils import (
     StarDate,
-    StarImage,
     StarInterval,
     handle_client_connection_error,
 )
@@ -15,7 +15,6 @@ import asyncio
 import glob
 import aiofiles
 from itertools import chain
-import os
 import os.path as osp
 
 __all__ = ["Hinode"]
@@ -25,8 +24,8 @@ class Hinode:
     class XRT(StarImage):
         def __init__(self, download_path: str = "./data/Hinode/XRT", batch_size: int = 1) -> None:
             super().__init__(
-                batch_size = batch_size,
-                root_path = download_path,
+                download_path,
+                batch_size,
             )
             self.path: Callable[[str], str] = lambda name: osp.join(
                 self.root_path, f"{name}.fits"
@@ -46,6 +45,9 @@ class Hinode:
             for date in tqdm(new_scrap_date, desc = f'{self.__class__.__name__}: Looking for URLs'):
                 if len(glob.glob(self.path(f'{date.str().split("-")[0]}*'))) == 0:
                     self.new_scrap_date_list.append(date)
+
+            if self.new_scrap_date_list:
+                os.makedirs(self.root_path, exist_ok = True)
 
         def _get_scrap_tasks(self, session) -> List[Coroutine]:
             return [
