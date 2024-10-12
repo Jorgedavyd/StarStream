@@ -1,5 +1,6 @@
 from typing import Callable, Coroutine, List, Optional
 from numpy._typing import NDArray
+from starstream.downloader import DataDownloading
 from ._base import CSV
 from .utils import (
     StarDate,
@@ -14,8 +15,8 @@ import os
 from datetime import datetime, timedelta
 import os.path as osp
 import polars as pl
-__all__ = ["PROBA_2"]
 
+__all__ = ["PROBA_2"]
 
 def min_to_datetime(data: NDArray, date: str) -> NDArray:
     def func(min: int) -> datetime:
@@ -69,7 +70,8 @@ class PROBA_2:
                 data = await f.read()
                 with fits.open(BytesIO(data)) as hdul:
                     data = np.stack(hdul[1].data, axis=0)
+                    print(hdul[1].header)
                     data[:, 1:] = data[:, 1:].astype(np.float32)
                     data[:, 0] = min_to_datetime(data[:, 0], day)
-                    pl.from_numpy(data[:,:-1]).write_csv(self.csv_path(day))
+                    pl.from_numpy(data[:,:-1], schema = ['date'] + [f'channel_{i}' for i in range(1,5)]).write_csv(self.csv_path(day))
             os.remove(self.fits_path(day))

@@ -3,7 +3,7 @@ from typing import Callable, List, Tuple, Union
 from spacepy import os
 from tqdm import tqdm
 
-from starstream._base import Satellite, StarImage
+from starstream._base import StarImage
 from .utils import (
     StarDate,
     StarInterval,
@@ -121,9 +121,9 @@ class Hinode:
                     download_urls = await asyncio.gather(
                         *scrap_tasks[i : i + self.batch_size]
                     )
-                    download_urls = [*chain.from_iterable(download_urls)]
-                    download_urls = [param for param in download_urls if param is not None]
-                    asyncio.gather(*self._get_downloading_tasks(download_urls, session))
+                    download_urls = list(chain.from_iterable(download_urls))
+                    download_urls = list(filter(lambda x: x is not None, download_urls))
+                    await asyncio.gather(*self._get_downloading_tasks(download_urls, session))
 
         def get_hour_images(self, date: StarDate) -> List[str]:
             query_c = "*" + "_".join(date.str().split("-"))[:-4] + "**"

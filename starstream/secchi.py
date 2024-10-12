@@ -1,6 +1,6 @@
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
 from .utils import StarDate, StarInterval, handle_client_connection_error
-from starstream._base import Satellite
+from starstream._base import StarImage
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -39,7 +39,7 @@ def parseUrl(url: str) -> Tuple[str, str]:
 
 class STEREO_A:
     class SECCHI:
-        class EUVI(Satellite):
+        class EUVI(StarImage):
             def __init__(
                 self,
                 wavelength: str | Sequence[str],
@@ -168,9 +168,8 @@ class STEREO_A:
                 session,
             ) -> None:
                 if isinstance(scrap_date[0], datetime):
-                    self.check_tasks([scrap_date])
-                else:
-                    self.check_tasks(scrap_date)
+                    scrap_date = [scrap_date]
+                self.check_tasks(scrap_date)
                 if len(self.new_scrap_date_list) == 0:
                     print(f"{self.__class__.__name__}: Already downloaded")
                 else:

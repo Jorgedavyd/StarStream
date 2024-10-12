@@ -39,7 +39,7 @@ class Dst(CSV):
             return f"https://wdc.kugi.kyoto-u.ac.jp/dst_final/{month}/dst{month[2:]}.for.request"
 
     async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        return await super()._check_tasks(scrap_date, relativedelta(months = 1), '%Y%m')
+        return await super()._check_tasks(scrap_date)
 
     @handle_client_connection_error(default_cooldown=5, max_retries=3, increment="exp")
     async def _download_url(self, session, month: StarDate) -> None:

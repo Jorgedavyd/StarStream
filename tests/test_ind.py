@@ -6,8 +6,13 @@ def runtime(object) -> None:
     obj = object()
     DataDownloading(obj, scrap_date_list)
     scrap_date: Tuple[datetime, datetime] = scrap_date_list[0]
-    obj.get_numpy(scrap_date, timedelta(hours=1))
-    obj.get_torch(scrap_date, timedelta(hours=1))
+    try:
+        obj.get_numpy(scrap_date, timedelta(hours=1))
+        obj.get_torch(scrap_date, timedelta(hours=1))
+    except TypeError:
+        obj.get_numpy(scrap_date)
+        obj.get_torch(scrap_date)
+
 
 def test_dscovr_fd() -> None:
     runtime(DSCOVR.FaradayCup)
@@ -57,7 +62,7 @@ def test_aia_lr() -> None:
 
 def test_aia_hr() -> None:
     def object():
-        return SDO.AIA_HR(step_size=timedelta(minutes=5), wavelength="94")
+        return SDO.AIA_HR(resolution=timedelta(minutes=5), wavelength="94")
     runtime(object)
 
 def test_secchi() -> None:

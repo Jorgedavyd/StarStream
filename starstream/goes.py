@@ -1,3 +1,4 @@
+from starstream.downloader import DataDownloading
 from starstream.utils import StarDate, StarInterval, handle_client_connection_error
 from typing import Callable, List, Tuple, Coroutine, Union
 from datetime import datetime, timedelta
@@ -24,9 +25,9 @@ class GOES16(StarImage):
         download_path: str = "./data/GOES16/",
         batch_size: int = 10,
     ) -> None:
-        self.intrument = f"suvi-l1b-{instrument}"
+        self.instrument = f"suvi-l1b-{instrument}"
         super().__init__(
-            os.path.join(download_path, self.intrument),
+            os.path.join(download_path, self.instrument),
             batch_size,
         )
         assert 0 <= granularity <= 1, "Not valid granularity, must be < |1|"
@@ -34,7 +35,7 @@ class GOES16(StarImage):
             instrument in VALID_INSTRUMENTS
         ), f"Not valid instrument: {instrument}, must be {VALID_INSTRUMENTS}"
         self.url: Callable[[str, str], str] = (
-            lambda name, date: f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/goes16/l1b/{instrument}/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
+            lambda name, date: f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/goes16/l1b/{self.instrument}/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
         )
         self.granularity: float = granularity
         self.img_path: Callable[[str], str] = lambda name: os.path.join(self.root_path, name)

@@ -214,4 +214,3 @@ async def coroutine_handler(function: Callable[..., Any], *args: Any) -> Any:
         return await function(*args)
     else:
         return function(*args)
-

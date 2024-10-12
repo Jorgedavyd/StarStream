@@ -8,7 +8,7 @@ from .utils import (
     timedelta_to_freq,
 )
 from PIL import Image
-from typing import Any, Callable, Coroutine, List, Tuple, Union
+from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
 from datetime import timedelta, datetime
 from numpy._typing import NDArray
 from spacepy import pycdf
@@ -23,12 +23,10 @@ import asyncio
 import torch
 import os
 import numpy as np
-from PIL import Image
-import aiofiles
-import io
 from concurrent.futures import ThreadPoolExecutor
-from torch import Tensor
 import torch
+from astropy.io import fits
+from io import BytesIO
 
 @dataclass
 class Satellite:
@@ -36,7 +34,17 @@ class Satellite:
     batch_size: int = field(default = 10)
     date_sampling: Union[timedelta, relativedelta] = field(default = timedelta(days = 1))
     format: str = field(default = '%Y%m%d')
-    new_scrap_date_list: List[StarDate] = field(default_factory = list)
+
+    def __post_init__(self) -> None:
+        self.new_scrap_date_list: List[StarDate] = []
+        self.urls: List[str] = []
+
+    def _scrap_url() -> None:
+        self.urls.extend(new_urls)
+
+    def _download_url(self, session, url: str) -> None:
+
+    def _preprocess(self, path: str) -> None:
 
     async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None: raise NotImplemented("Fetch not defined")
 
@@ -85,9 +93,8 @@ class CSV(Satellite):
     def _convert_to_format(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
-
-        method: str,
+        resolution: Optional[timedelta] = None,
+        method: str = None,
     ) -> Tuple[Any, ...]:
         list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
         return tuple([getattr(df.drop("date"), method)() for df in list_df])
@@ -95,21 +102,21 @@ class CSV(Satellite):
     def get_numpy(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
+        resolution: Optional[timedelta] = None,
     ) -> Tuple[NDArray, ...]:
         return self._convert_to_format(scrap_date, resolution, "to_numpy")
 
     def get_pandas(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
+        resolution: Optional[timedelta] = None,
     ) -> Tuple[pd.DataFrame, ...]:
         return self._convert_to_format(scrap_date, resolution, "to_pandas")
 
     def get_torch(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
+        resolution: Optional[timedelta] = None,
     ) -> Tuple[Tensor, ...]:
         list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
         return tuple([torch.from_numpy(df.drop("date").to_numpy().astype(np.float32)) for df in list_df])
@@ -117,14 +124,14 @@ class CSV(Satellite):
     def get_polars(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
+        resolution: Optional[timedelta] = None,
     ) -> Tuple[pl.DataFrame, ...]:
         return tuple(self._process_polars(scrap_date, resolution))
 
     def _process_polars(
         self,
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
-        resolution: timedelta,
+        resolution: Optional[timedelta] = None,
     ) -> List[pl.DataFrame]:
         if isinstance(scrap_date[0], datetime):
             scrap_date = [scrap_date]
@@ -134,12 +141,18 @@ class CSV(Satellite):
                 [tuple_date], self.date_sampling, self.format
             )
             df: pl.DataFrame = self._get_df(new_scrap_date)
-            df.filter(
-                (pl.col("date") > new_scrap_date.interval[0].polars())
-                & (pl.col("date") < new_scrap_date.interval[-1].polars())
-            ).group_by_dynamic("date", every = timedelta_to_freq(resolution)).agg(
-                pl.col("*")
-            ).mean()
+            if resolution is not None:
+                df = df.filter(
+                    (pl.col("date") > new_scrap_date.interval[0].polars())
+                    & (pl.col("date") < new_scrap_date.interval[-1].polars())
+                ).group_by_dynamic("date", every = timedelta_to_freq(resolution)).agg(
+                    pl.col("*")
+                ).mean()
+            else:
+                df = df.filter(
+                    (pl.col("date") > new_scrap_date.interval[0].polars())
+                    & (pl.col("date") < new_scrap_date.interval[-1].polars())
+                )
             out_list.append(df)
         return out_list
 
@@ -235,28 +248,60 @@ class CDAWeb(CSV):
 class StarImage(Satellite):
     def __init__(self, download_path: str, batch_size: int) -> None:
         super().__init__(download_path, batch_size)
+        os.makedirs(download_path, exist_ok = True)
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
 
     def process_image(self, content: bytes):
-        image = Image.open(io.BytesIO(content))
+        image = Image.open(BytesIO(content))
         return np.array(image)
 
-    async def load_npy_from_png(self, path: str) -> NDArray:
+    def process_fits(self, content: bytes):
+        with fits.open(BytesIO(content)) as hdul:
+            data = hdul[0].data
+            if data is not None:
+                data = hdul[0].data.astype(np.float32)
+        return data
+
+    async def load_fits(self, path: str) -> NDArray:
         async with aiofiles.open(path, mode="rb") as file:
             content = await file.read()
 
         loop = asyncio.get_running_loop()
         with ThreadPoolExecutor() as pool:
-            array = await loop.run_in_executor(pool, StarImage.process_image, content)
+            array = await loop.run_in_executor(pool, self.process_fits, content)
 
         return array
 
-    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+    async def load_img(self, path: str) -> NDArray:
+        async with aiofiles.open(path, mode="rb") as file:
+            content = await file.read()
+
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            array = await loop.run_in_executor(pool, self.process_image, content)
+
+        return array
+
+    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> np.ndarray:
         paths: List[str] = self._path_prep(scrap_date)
+        sample_path: str = paths[0]
+
+        match sample_path.split('.')[-1]:
+            case "fits":
+                method = self.load_fits
+            case "png":
+                method = self.load_img
+            case "jp2":
+                method = self.load_img
+            case "jpg":
+                method = self.load_img
+            case _:
+                raise ValueError("Not valid path to an image")
+
         return np.stack(
             await asyncio.gather(
-                *[self.load_npy_from_png(path) for path in paths]
+                *[method(path) for path in paths]
             ),
             axis=0,
         )
@@ -264,8 +309,12 @@ class StarImage(Satellite):
     async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
         return torch.from_numpy(await self.async_numpy(scrap_date))
 
-    def get_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
+    def get_torch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]]) -> Tensor:
+        if isinstance(scrap_date[0], datetime):
+            scrap_date = [scrap_date]
         return asyncio.run(self.async_torch(scrap_date))
 
-    def get_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> NDArray:
+    def get_numpy(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]]) -> NDArray:
+        if isinstance(scrap_date[0], datetime):
+            scrap_date = [scrap_date]
         return asyncio.run(self.async_numpy(scrap_date))
