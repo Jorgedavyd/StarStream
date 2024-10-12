@@ -1,17 +1,18 @@
 from dataclasses import dataclass, field
 from dateutil.relativedelta import relativedelta
+
+from starstream._utils import async_batch, asyncCDF, create_scrap_date, download_url_write
+from starstream.typing import ScrapDate
 from .utils import (
     StarDate,
     coroutine_handler,
     StarInterval,
-    handle_client_connection_error,
     timedelta_to_freq,
 )
 from PIL import Image
-from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 from datetime import timedelta, datetime
 from numpy._typing import NDArray
-from spacepy import pycdf
 from torch import Tensor
 from tqdm import tqdm
 import os.path as osp
@@ -30,69 +31,108 @@ from io import BytesIO
 
 @dataclass
 class Satellite:
-    root_path: str = field(default = './data/')
+    root: str = field(default = './data/')
     batch_size: int = field(default = 10)
+    filepath: Callable = field(default = lambda name: osp.join('./data', name))
     date_sampling: Union[timedelta, relativedelta] = field(default = timedelta(days = 1))
     format: str = field(default = '%Y%m%d')
 
     def __post_init__(self) -> None:
-        self.new_scrap_date_list: List[StarDate] = []
+        self.dates: List[StarDate] = []
         self.urls: List[str] = []
+        self.paths: List[str] = []
 
-    def _scrap_url() -> None:
-        self.urls.extend(new_urls)
+    async def _scrap_(self, idx: int) -> None:
+        """
+        Defines all URLs to be downloaded in order to complete the query.
+        Populates:
+            local dates (List[void]) -> (List[str])
+            self.urls (List[void]) -> (List[str])
+            self.paths (List[void]) -> (List[str])
+        """
+        _ = idx
+        raise NotImplementedError("_scrap_")
 
-    def _download_url(self, session, url: str) -> None:
+    async def _download_(self, idx: int) -> None:
+        """
+        Defines the underlying methods to find the values for each Satellite class.
+        Changes:
+            self.urls (List[str]) -> (List[str | empty]) (pops one element of self.urls)
+        """
+        _ = idx
+        raise NotImplementedError("_download_")
 
-    def _preprocess(self, path: str) -> None:
+    async def _prep_(self, idx: int) -> None:
+        """
+        Defines the underlying methods to find the values for each Satellite class.
+        Changes:
+            self.paths (List[str]) -> (List[str]) (pops one element of self.paths)
+        """
+        _ = idx
+        raise NotImplementedError("_prep_")
 
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]], session) -> None: raise NotImplemented("Fetch not defined")
+    async def _find_local(self, filepath: str) -> bool:
+        return os.path.exists(filepath)
 
-@dataclass
-class CSV(Satellite):
-    csv_path: Callable[[str], str] = lambda x: x
+    async def _interval_setup(self, scrap_date: ScrapDate) -> None:
+        new_scrap_date = StarInterval(create_scrap_date(scrap_date),self.date_sampling, self.format)
 
-    def _get_download_tasks(self, session) -> List[Coroutine]:
-        return [self._download_url(session, date) for date in self.new_scrap_date_list]
-
-    async def fetch(
-        self,
-        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-        session,
-    ) -> None:
-        if isinstance(scrap_date[0], datetime):
-            scrap_date = [scrap_date]
-        await coroutine_handler(self._check_tasks, scrap_date)
-        download_tasks: List[Coroutine] = await coroutine_handler(self._get_download_tasks, session)
-        for i in tqdm(
-            range(0, len(download_tasks), self.batch_size),
-            desc=f"{self.__class__.__name__}: Downloading...",
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
         ):
-            await asyncio.gather(*download_tasks[i : i + self.batch_size])
+            if self._find_local(self.filepath(date.str())):
+                self.dates.append(date)
 
-        if func:=getattr(self, '_get_preprocessing_tasks', False):
-            preprocessing_tasks: List[Coroutine] = await coroutine_handler(func, session)
-            for i in tqdm(
-                range(0, len(preprocessing_tasks), self.batch_size),
-                desc=f"{self.__class__.__name__}: Preprocessing..."):
-                await asyncio.gather(*preprocessing_tasks[i : i + self.batch_size])
+        if self.dates:
+            os.makedirs(self.root, exist_ok=True)
 
-        if func:=getattr(self, '_preprocess', False):
-            for date in tqdm(
-                self.new_scrap_date_list,
-                desc=f"{self.__class__.__name__}: Preprocessing...",
-            ):
-                await coroutine_handler(func, date.str())
+    async def _scrap(self, idx: int) -> None:
+        """
+        Defines all URLs to be downloaded in order to complete the query.
+        Populates:
+            local dates (List[StarDate]) -> (List[StarDate])
+            self.urls (List[str]) -> (List[str])
+            self.paths (List[str]) -> (List[str])
+        """
+        await self._scrap_(idx)
 
+    async def _download(self, idx: int) -> None:
+        """
+        Downloads the URLs defined at self._scrap_url.
+        Changes:
+            self.urls (List[str]) -> (List[str]) (pops one URL)
+        """
+        await self._download_(idx)
+
+    async def _preprocess(self, idx: int) -> None:
+        """
+        Preprocess the data with asynchronous methods.
+        Changes:
+            self.paths (List[str]) -> (List[str | empty]) (pops the path)
+        """
+        await self._prep_(idx)
+
+    async def fetch(self, scrap_date: ScrapDate, session) -> None:
+        await coroutine_handler(self._interval_setup, scrap_date)
+        self.session = session
+        await async_batch(
+            self,
+            ("_scrap", "_download", "_preprocess"),
+            f"{self.__class__.__name__}",
+            scrap_date, 'urls', 'paths'
+        )
+
+class CSV(Satellite):
     def _get_df_unit(self, date: str) -> pl.DataFrame:
-        return pl.read_csv(self.csv_path(date), try_parse_dates = True)
+        return pl.read_csv(self.filepath(date), try_parse_dates = True)
 
     def _get_df(self, scrap_date: StarInterval) -> pl.DataFrame:
         return pl.concat([self._get_df_unit(date.str()) for date in scrap_date])
 
     def _convert_to_format(
         self,
-        scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
+        scrap_date: ScrapDate,
         resolution: Optional[timedelta] = None,
         method: str = None,
     ) -> Tuple[Any, ...]:
@@ -130,11 +170,10 @@ class CSV(Satellite):
 
     def _process_polars(
         self,
-        scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
+        scrap_date: ScrapDate,
         resolution: Optional[timedelta] = None,
     ) -> List[pl.DataFrame]:
-        if isinstance(scrap_date[0], datetime):
-            scrap_date = [scrap_date]
+        scrap_date = create_scrap_date(scrap_date)
         out_list: List[pl.DataFrame] = []
         for tuple_date in scrap_date:
             new_scrap_date: StarInterval = StarInterval(
@@ -156,47 +195,25 @@ class CSV(Satellite):
             out_list.append(df)
         return out_list
 
-    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        if func:=getattr(self, '_check_update', False):
-            await coroutine_handler(func, scrap_date)
-
-        new_scrap_date: StarInterval = StarInterval(scrap_date, self.date_sampling, self.format)
-
-        for date in tqdm(
-            new_scrap_date,
-            desc=f"{self.__class__.__name__}: Looking for missing dates...",
-        ):
-            if not os.path.exists(self.csv_path(date.str())):
-                self.new_scrap_date_list.append(date)
-
-        if self.new_scrap_date_list:
-            os.makedirs(self.csv_path("")[:-4], exist_ok=True)
-
+@dataclass
 class CDAWeb(CSV):
-    phy_obs: List[str]
-    variables: List[str]
-    url: Callable[[str], str]
+    phy_obs: List[str] = None
+    variables: List[str] = None
+    url: Callable[[str], str] = None
 
-    def __init__(
-            self,
-            download_path: str,
-            batch_size: int = 10,
-            date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
-            format: str = '%Y%m%d'
-    ) -> None:
-        super().__init__(
-            root_path = download_path,
-            batch_size = batch_size,
-            date_sampling = date_sampling,
-            format = format,
-            csv_path = lambda date: osp.join(download_path, f"{date}.csv")
-        )
-        self.cdf_path: Callable[[str], str] = lambda date: osp.join(
-            self.root_path, f"{date}.cdf"
-        )
+    def __post_init__(self) -> None:
+        self.cdf_path: Callable[[str], str] = lambda date: osp.join(self.root, f"{date}.cdf")
 
-    def _preprocess(self, date: str):
-        with pycdf.CDF(self.cdf_path(date)) as cdf_file:
+    async def _scrap_(self, idx: int) -> None:
+        self.paths.extend([self.filepath(date.str()) for date in self.dates[idx : idx + self.batch_size]])
+        self.urls.extend([self.url(date.str()) for date in self.dates[idx : idx + self.batch_size]])
+
+    async def _download_(self, idx: int) -> None:
+        return await download_url_write(self, idx)
+
+    async def _prep_(self, idx: int):
+        def processing(cdf_file) -> None:
+            date = self.dates[idx].str()
             epoch = cdf_file["Epoch"][:]
             if epoch is None:
                 raise ValueError("Epoch is None")
@@ -222,45 +239,38 @@ class CDAWeb(CSV):
             time = pl.from_numpy(epoch, schema = ['date'], orient = 'col').cast({"date": pl.Datetime})
             output = pl.from_numpy(data_columns, schema = self.variables, orient = 'col')
             output = output.with_columns(time)
-            output.write_csv(self.csv_path(date))
+            output.write_csv(self.filepath(date))
             os.remove(self.cdf_path(date))
 
-    @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
-    async def _download_url(self, session, date: StarDate) -> None:
-        url: str = self.url(date.str())
-        async with session.get(url) as response:
-            if response.status != 200:
-                print(
-                    f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                )
-                self.new_scrap_date_list.remove(date)
-            else:
-                cdf_data = await response.read()
-                if cdf_data.startswith(b"<html>"):
-                    print(
-                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                    )
-                    self.new_scrap_date_list.remove(date)
-                    return
-                async with aiofiles.open(self.cdf_path(date.str()), "wb") as f:
-                    await f.write(cdf_data)
+        await asyncCDF(self.cdf_path(self.dates[idx].str()), processing)
 
-class StarImage(Satellite):
-    def __init__(self, download_path: str, batch_size: int) -> None:
-        super().__init__(download_path, batch_size)
-        os.makedirs(download_path, exist_ok = True)
 
-    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]: raise NotImplemented("_path_prep not implemented")
+@dataclass
+class Image(Satellite):
+    def __post_init__(self) -> None:
+        super().__post_init__()
 
-    def process_image(self, content: bytes):
+    def _find_local(self, filepath: str) -> bool:
+        raise NotImplemented("_path_prep")
+
+    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
+        """
+        Defines the path scrapping method that is used to get all files.
+        """
+        out: List[str] = []
+        for date in StarInterval(create_scrap_date(scrap_date), self.date_sampling, self.format):
+            out.append(self.filepath(date.str())) # mirar
+        return out
+
+    def process_image(self, content: bytes) -> NDArray:
         image = Image.open(BytesIO(content))
         return np.array(image)
 
-    def process_fits(self, content: bytes):
+    def process_fits(self, content: bytes) -> NDArray:
         with fits.open(BytesIO(content)) as hdul:
             data = hdul[0].data
             if data is not None:
-                data = hdul[0].data.astype(np.float32)
+                data = data.astype(np.float32)
         return data
 
     async def load_fits(self, path: str) -> NDArray:
@@ -309,12 +319,10 @@ class StarImage(Satellite):
     async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
         return torch.from_numpy(await self.async_numpy(scrap_date))
 
-    def get_torch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]]) -> Tensor:
-        if isinstance(scrap_date[0], datetime):
-            scrap_date = [scrap_date]
-        return asyncio.run(self.async_torch(scrap_date))
+    def get_torch(self, scrap_date: ScrapDate) -> Tensor:
+        new_scrap_date = create_scrap_date(scrap_date)
+        return asyncio.run(self.async_torch(new_scrap_date))
 
-    def get_numpy(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]]) -> NDArray:
-        if isinstance(scrap_date[0], datetime):
-            scrap_date = [scrap_date]
-        return asyncio.run(self.async_numpy(scrap_date))
+    def get_numpy(self, scrap_date: ScrapDate) -> NDArray:
+        new_scrap_date = create_scrap_date(scrap_date)
+        return asyncio.run(self.async_numpy(new_scrap_date))
