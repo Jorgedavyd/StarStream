@@ -46,7 +46,6 @@ class DSCOVR:
                         url_list.append(url)
             self.urls = url_list
 
-
         async def _check_update(
             self, scrap_date: List[Tuple[datetime, datetime]]
         ) -> None:
@@ -116,20 +115,18 @@ class DSCOVR:
             dataset.close()
             df = df.reset_index(drop=False)
             df = df.rename(columns={"time": "date"})
-            df.to_csv(self.filepath(date), index = False)
+            df.to_csv(self.filepath(date), index=False)
 
         @handle_client_connection_error(
             default_cooldown=5, max_retries=3, increment="exp"
         )
         async def _download_(self, idx: int) -> None:
             return await download_url_prep(
-                    self,
-                    idx,
-                    lambda gzip_file: asyncGZIP(
-                        BytesIO(gzip_file),
-                        self._gz_processing,
-                        self.dates[idx].str()
-                    )
+                self,
+                idx,
+                lambda gzip_file: asyncGZIP(
+                    BytesIO(gzip_file), self._gz_processing, self.dates[idx].str()
+                ),
             )
 
     class FaradayCup(__Base):

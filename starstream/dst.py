@@ -1,5 +1,9 @@
 from starstream._base import CSV
-from starstream._utils import download_url_prep, StarDate, handle_client_connection_error
+from starstream._utils import (
+    download_url_prep,
+    StarDate,
+    handle_client_connection_error,
+)
 from starstream.typing import ScrapDate
 from typing import List
 from dateutil.relativedelta import relativedelta
@@ -57,9 +61,7 @@ class Dst(CSV):
         out_list: List[str] = []
 
         for line in data:
-            out_list.extend(
-                line.replace("-", " -").replace("+", " +").split()[-24:]
-            )
+            out_list.extend(line.replace("-", " -").replace("+", " +").split()[-24:])
 
         out_list.insert(0, "dst_index")
 
@@ -70,9 +72,7 @@ class Dst(CSV):
     def _get_df_unit(self, date: StarDate) -> pl.DataFrame:
         df = pl.read_csv(self.filepath(date.str())).get_column("dst_index")
         start_date: datetime = datetime(int(date[:4]), int(date[4:6]), 1)
-        end_date: datetime = (
-            start_date + relativedelta(months=1) - timedelta(hours=1)
-        )
+        end_date: datetime = start_date + relativedelta(months=1) - timedelta(hours=1)
         full_range = pl.DataFrame(
             {
                 "date": pl.datetime_range(

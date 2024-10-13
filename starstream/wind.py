@@ -29,9 +29,7 @@ def TDP_PM_version(date, mode="%Y%m%d"):
 
 class WIND:
     class MAG(CDAWeb):
-        def __init__(
-            self, root: str = "./data/WIND/MAG", batch_size: int = 10
-        ) -> None:
+        def __init__(self, root: str = "./data/WIND/MAG", batch_size: int = 10) -> None:
             super().__init__(root, batch_size)
             self.phy_obs: List[str] = ["BF1", "BGSE", "BGSM"]
             self.variables: List[str] = ["BF1"] + [
@@ -434,9 +432,7 @@ class WIND:
             )
 
     class SMS(CDAWeb):
-        def __init__(
-            self, root: str = "./data/WIND/SMS", batch_size: int = 10
-        ) -> None:
+        def __init__(self, root: str = "./data/WIND/SMS", batch_size: int = 10) -> None:
             super().__init__(root, batch_size)
             self.angle: List[int] = [53, 0, -53]
             self.phy_obs: List[str] = [

@@ -3,10 +3,9 @@ from ._base import CDAWeb
 
 __all__ = ["OMNI"]
 
+
 class OMNI(CDAWeb):
-    def __init__(
-        self, root: str = "./data/OMNI/HRO2/", batch_size: int = 10
-    ) -> None:
+    def __init__(self, root: str = "./data/OMNI/HRO2/", batch_size: int = 10) -> None:
         super().__init__(
             root=root,
             batch_size=batch_size,

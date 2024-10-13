@@ -1,4 +1,9 @@
-from starstream._utils import StarDate, asyncGZIP, handle_client_connection_error, scrap_url_default
+from starstream._utils import (
+    StarDate,
+    asyncGZIP,
+    handle_client_connection_error,
+    scrap_url_default,
+)
 from typing import Callable, List, Tuple, Union
 from starstream.typing import ScrapDate
 from starstream._base import Img
@@ -7,6 +12,7 @@ import aiofiles
 import os
 
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
+
 
 class GOES16(Img):
     def __init__(
@@ -18,9 +24,9 @@ class GOES16(Img):
     ) -> None:
         self.instrument = f"suvi-l1b-{instrument}"
         super().__init__(
-            root = os.path.join(root, self.instrument),
-            batch_size = batch_size,
-            filepath = lambda name: os.path.join(self.root, name),
+            root=os.path.join(root, self.instrument),
+            batch_size=batch_size,
+            filepath=lambda name: os.path.join(self.root, name),
         )
         assert 0 <= granularity <= 1, "Not valid granularity, must be < |1|"
         assert (
@@ -51,7 +57,14 @@ class GOES16(Img):
         soup = BeautifulSoup(html, "html.parser")
         href = lambda x: x and x.endswith("fits.gz")
         fits_links = soup.find_all("a", href=href)
-        names = list(map(lambda y: y["href"], filter(lambda x: (x is not None) and (x["href"] is not None), fits_links)))
+        names = list(
+            map(
+                lambda y: y["href"],
+                filter(
+                    lambda x: (x is not None) and (x["href"] is not None), fits_links
+                ),
+            )
+        )
         names = [
             name
             for idx, name in enumerate(names)

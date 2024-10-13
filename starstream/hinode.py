@@ -21,8 +21,10 @@ __all__ = ["Hinode"]
 
 class Hinode:
     class XRT(Img):
-        def __init__(self, root: str = "./data/Hinode/XRT", batch_size: int = 1) -> None:
-            super().__init__(root,batch_size)
+        def __init__(
+            self, root: str = "./data/Hinode/XRT", batch_size: int = 1
+        ) -> None:
+            super().__init__(root, batch_size)
             self.path: Callable[[str], str] = lambda name: osp.join(
                 self.root, f"{name}.fits"
             )

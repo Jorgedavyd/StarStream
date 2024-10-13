@@ -36,6 +36,7 @@ from starstream.typing import ScrapDate
 
 ## Asynchronous processing
 
+
 def syncGZ(file_obj: BytesIO):
     return gzip.GzipFile(fileobj=file_obj)
 
@@ -45,7 +46,10 @@ def syncTAR(file_obj: BytesIO):
 
 
 async def asyncGeneral(
-    obj: Union[str, BytesIO], processing: Optional[Callable], read_method: Callable, *args
+    obj: Union[str, BytesIO],
+    processing: Optional[Callable],
+    read_method: Callable,
+    *args,
 ) -> None:
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as thread:
@@ -56,19 +60,27 @@ async def asyncGeneral(
         return general_file
 
 
-async def asyncCDF(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
+async def asyncCDF(
+    obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args
+) -> Any:
     return await asyncGeneral(obj, processing, pycdf.CDF, *args)
 
 
-async def asyncZIP(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
+async def asyncZIP(
+    obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args
+) -> Any:
     return await asyncGeneral(obj, processing, zipfile.ZipFile, *args)
 
 
-async def asyncGZIP(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
+async def asyncGZIP(
+    obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args
+) -> Any:
     return await asyncGeneral(obj, processing, syncGZ, *args)
 
 
-async def asyncFITS(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
+async def asyncFITS(
+    obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args
+) -> Any:
     return await asyncGeneral(obj, processing, fits.open, *args)
 
 
@@ -198,9 +210,7 @@ def assert_scrap_date(
             assert_scrap_date(interval)
 
 
-def create_scrap_date(
-    scrap_date: ScrapDate
-):
+def create_scrap_date(scrap_date: ScrapDate):
     assert_scrap_date(scrap_date)
     if isinstance(scrap_date[0], datetime):
         return [scrap_date]
@@ -211,7 +221,7 @@ def create_scrap_date(
 
 
 async def async_batch(self: Satellite, methods: Sequence[str], desc: str) -> None:
-    for idx in tqdm(range(0, self.dates, self.batch_size), desc = desc):
+    for idx in tqdm(range(0, self.dates, self.batch_size), desc=desc):
         for method in methods:
             await asyncio.gather(
                 *[
@@ -268,12 +278,14 @@ async def check_response_bytes(self, response, url: str) -> Any:
             not_valid_query(self, url)
         return content
 
+
 async def check_response_text(self, response, url: str) -> Any:
     if response is not None:
         content = await response.text()
         if response.status != 200:
             not_valid_query(self, url)
         return content
+
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_write(self, idx: int) -> None:
@@ -295,6 +307,7 @@ async def download_url_prep(
         if content is not None:
             return await coroutine_handler(method, content, *args)
 
+
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def scrap_url_default(
     self, idx: int, method: Callable[[bytes], Coroutine], *args: Any
@@ -305,9 +318,11 @@ async def scrap_url_default(
         if content is not None:
             return await coroutine_handler(method, content, *args)
 
+
 def find_files_glob(self: Satellite, date: str) -> Tuple[bool, List[str]]:
-    out= glob(self.scrap_path(date))
+    out = glob(self.scrap_path(date))
     return bool(len(out)), out
+
 
 def find_files_daily(self: Satellite, date: str) -> bool:
     return osp.exists(self.scrap_path(date))

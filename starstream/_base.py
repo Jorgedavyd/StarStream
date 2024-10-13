@@ -139,18 +139,18 @@ class Satellite:
 
 class CSV(Satellite):
     def __init__(
-            self,
-            root: str = './data',
-            batch_size: int = 10,
-            date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
-            format: str = "%Y%m%d"
+        self,
+        root: str = "./data",
+        batch_size: int = 10,
+        date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
+        format: str = "%Y%m%d",
     ) -> None:
         super().__init__(
             root,
             batch_size,
             lambda date: osp.join(root, f"{date}.csv"),
             date_sampling,
-            format
+            format,
         )
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
@@ -240,10 +240,10 @@ class CDAWeb(CSV):
 
     def __init__(
         self,
-        root: str = './data',
+        root: str = "./data",
         batch_size: int = 10,
-        date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
-        format: str = "%Y%m%d"
+        date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
+        format: str = "%Y%m%d",
     ) -> None:
         super().__init__(root, batch_size, date_sampling, format)
         self.cdf_path: Callable[[str], str] = lambda date: osp.join(
@@ -314,7 +314,9 @@ class Img(Satellite):
         Defines the path scrapping method that is used to get all files.
         """
         out: List[str] = []
-        for date in StarInterval(create_scrap_date(scrap_date), self.date_sampling, self.format):
+        for date in StarInterval(
+            create_scrap_date(scrap_date), self.date_sampling, self.format
+        ):
             out.extend(self._find_local(date.str())[-1])
         return out
 
