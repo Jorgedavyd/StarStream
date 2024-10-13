@@ -1,24 +1,21 @@
 from dataclasses import dataclass
 from tqdm import tqdm
 from starstream._base import CSV
-from .utils import (
-    StarDate,
-    handle_client_connection_error,
-    asyncGZ,
-)
+from starstream._utils import asyncGZIP, create_scrap_date, download_url_prep
+from starstream.typing import ScrapDate
+from starstream.utils import handle_client_connection_error
 from datetime import timedelta, datetime
 from io import BytesIO
 import xarray as xr
 import os
 import time
-from typing import Coroutine, Tuple, List
+from typing import Tuple, List
 from selenium.webdriver.chrome.options import Options
 import os.path as osp
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import chromedriver_binary
 import aiofiles
-import pandas as pd
 
 __all__ = ["DSCOVR"]
 
@@ -35,16 +32,20 @@ class DSCOVR:
             ), "Not valid data product level"
             assert self.achronym is not None, "Achronym not passed"
 
-        def path_func(self, root, arg1, arg2, date) -> str:
-            return osp.join(root, arg1, arg2, f"{date}.csv")
+        async def _get_urls(self) -> None:
+            async with aiofiles.open(
+                osp.join(osp.dirname(__file__), "trivials/url.txt"), "r"
+            ) as file:
+                lines = await file.readlines()
+            url_list = []
+            for url in tqdm(
+                lines, desc=f"{self.__class__.__name__}: Getting the URLs..."
+            ):
+                for date in self.dates:
+                    if date.str() + "000000" in url and self.achronym in url:
+                        url_list.append(url)
+            self.urls = url_list
 
-        @staticmethod
-        def _to_unix(scrap_date: Tuple[datetime, datetime]) -> List[int]:
-            timestamp = [
-                int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
-                for date in scrap_date
-            ]
-            return timestamp
 
         async def _check_update(
             self, scrap_date: List[Tuple[datetime, datetime]]
@@ -68,16 +69,32 @@ class DSCOVR:
                     (datetime(2016, 7, 26), datetime.today() - timedelta(days=1))
                 )
 
+        @staticmethod
+        def _to_unix(scrap_date: Tuple[datetime, datetime]) -> List[int]:
+            timestamp = [
+                int(time.mktime(datetime(*date.timetuple()[:3]).timetuple())) * 1000
+                for date in scrap_date
+            ]
+            return timestamp
+
+        async def _interval_setup(self, scrap_date: ScrapDate) -> None:
+            await self._check_update(create_scrap_date(scrap_date))
+            super()._interval_setup(scrap_date)
+            await self._get_urls()
+            self.paths = [self.filepath(date.str()) for date in self.dates]
+
+        async def _scrap_(self, idx: int) -> None:
+            _ = idx
+            pass
+
         def _scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
             print("Updating url dataset...")
             unix = self._to_unix(scrap_date)
-            url = (
-                lambda unix: f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
-            )
+            url = f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
             op = Options()
             op.add_argument("headless")
             driver = webdriver.Chrome(options=op)
-            driver.get(url(unix))
+            driver.get(url)
             time.sleep(10)
             html = driver.page_source
             driver.quit()
@@ -93,52 +110,27 @@ class DSCOVR:
             with open(update_path, "x") as file:
                 file.write(scrap_date[-1].strftime("%Y%m%d"))
 
-        def _gz_processing(self, gz_file) -> pd.DataFrame:
+        def _gz_processing(self, gz_file, date: str) -> None:
             dataset = xr.open_dataset(gz_file.read())
             df = dataset.to_dataframe()
             dataset.close()
             df = df.reset_index(drop=False)
             df = df.rename(columns={"time": "date"})
-            return df
+            df.to_csv(self.filepath(date), index = False)
 
         @handle_client_connection_error(
             default_cooldown=5, max_retries=3, increment="exp"
         )
-        async def _download_url(self, url: str, date: StarDate, session) -> None:
-            async with session.get(url, ssl=False) as response:
-                if response.status != 200:
-                    print(
-                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
+        async def _download_(self, idx: int) -> None:
+            return await download_url_prep(
+                    self,
+                    idx,
+                    lambda gzip_file: asyncGZIP(
+                        BytesIO(gzip_file),
+                        self._gz_processing,
+                        self.dates[idx].str()
                     )
-                    self.new_scrap_date_list.remove(date)
-                else:
-                    data = await response.read()
-                    if data.startswith(b"<html>"):
-                        print(
-                            f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                        )
-                        self.new_scrap_date_list.remove(date)
-                        return
-                    df = await asyncGZ(BytesIO(data), self._gz_processing)
-                    df.to_csv(self.csv_path(date.str()), index=False)
-
-        async def _get_urls(self) -> List[Tuple[str, StarDate]]:
-            async with aiofiles.open(
-                osp.join(osp.dirname(__file__), "trivials/url.txt"), "r"
-            ) as file:
-                lines = await file.readlines()
-            url_list = []
-            for url in tqdm(
-                lines, desc=f"{self.__class__.__name__}: Getting the URLs..."
-            ):
-                for date in self.new_scrap_date_list:
-                    if date.str() + "000000" in url and self.achronym in url:
-                        url_list.append((url, date))
-            return url_list
-
-        async def _get_download_tasks(self, session) -> List[Coroutine]:
-            urls_dates = await self._get_urls()
-            return [self._download_url(url, date, session) for url, date in urls_dates]
+            )
 
     class FaradayCup(__Base):
         def __init__(
@@ -148,12 +140,9 @@ class DSCOVR:
             level: str = "l1",
         ) -> None:
             super().__init__(
+                root=osp.join(download_path, level, "faraday"),
                 batch_size=batch_size,
-                root_path=download_path,
                 level=level,
-                csv_path=lambda date: self.path_func(
-                    download_path, "faraday", level, date
-                ),
                 achronym="fc1" if level == "l1" else "fm1",
             )
 
@@ -165,11 +154,8 @@ class DSCOVR:
             level: str = "l2",
         ) -> None:
             super().__init__(
+                root=osp.join(download_path, level, "magnetometer"),
                 batch_size=batch_size,
-                root_path=download_path,
                 level=level,
-                csv_path=lambda date: self.path_func(
-                    download_path, level, "magnetometer", date
-                ),
                 achronym="mg1" if level == "l1" else "m1m",
             )

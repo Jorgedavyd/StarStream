@@ -16,7 +16,6 @@ from inspect import iscoroutinefunction
 from typing import (
     Coroutine,
     Dict,
-    Generator,
     Optional,
     Sequence,
     Tuple,
@@ -30,9 +29,12 @@ import polars as pl
 from inspect import iscoroutinefunction
 from concurrent.futures import ThreadPoolExecutor
 from starstream._base import Satellite
+from glob import glob
+import os.path as osp
+
+from starstream.typing import ScrapDate
 
 ## Asynchronous processing
-
 
 def syncGZ(file_obj: BytesIO):
     return gzip.GzipFile(fileobj=file_obj)
@@ -194,7 +196,7 @@ def assert_scrap_date(
 
 
 def create_scrap_date(
-    scrap_date: Union[Sequence[Sequence[datetime]], Sequence[datetime]]
+    scrap_date: ScrapDate
 ):
     assert_scrap_date(scrap_date)
     if isinstance(scrap_date[0], datetime):
@@ -205,22 +207,18 @@ def create_scrap_date(
 ## Utils for downloading
 
 
-async def async_batch(
-    self: Satellite, methods: Sequence[str], desc: str, *args
-) -> None:
-    assert len(set(map(len, args))) == 1, "Must have same number of args and methods"
-    for method, argument in zip(methods, args):
-        await asyncio.gather(
-            *[
-                coroutine_handler(getattr(self, method), *arg)
-                for arg in arg_iter(self, argument, desc)
-            ]
-        )
+async def async_batch(self: Satellite, methods: Sequence[str], desc: str) -> None:
+    for idx in tqdm(range(0, self.dates, self.batch_size), desc = desc):
+        for method in methods:
+            await asyncio.gather(
+                *[
+                    coroutine_handler(getattr(self, method), idx)
+                    for idx in range(idx, self.batch_size + idx)
+                ]
+            )
 
 
 # Utilities for downloading
-
-
 ## Decorator for connection error
 def handle_client_connection_error(
     default_cooldown: int, max_retries: int = 100, increment="linear"
@@ -279,23 +277,18 @@ async def download_url_write(self, idx: int) -> None:
 
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
-async def downoad_url_prep(
+async def download_url_prep(
     self, idx: int, method: Callable[[bytes], Coroutine]
 ) -> None:
     url: str = self.urls[idx]
     async with self.session.get(url, ssl=False) as response:
         content = await check_response(self, response, url)
         if content is not None:
-            await method(content)
+            await coroutine_handler(method, content)
 
 
-def arg_iter(self: Satellite, arg: str, desc: str) -> Generator:
-    arguments: List[Any] = getattr(self, arg)
-    for i in tqdm(range(0, len(arguments), self.batch_size), desc=desc):
-        out: List[Any] = []
-        for j in range(i, i + self.batch_size):
-            try:
-                out.append(arguments[j])
-            except IndexError:
-                yield out
-        yield out
+def find_files_glob(self: Satellite, date: str) -> bool:
+    return bool(len(glob(self.scrap_path(date))))
+
+def find_files_daily(self: Satellite, date: str) -> bool:
+    return osp.exists(self.scrap_path(date))

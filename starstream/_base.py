@@ -6,6 +6,7 @@ from starstream._utils import (
     asyncCDF,
     create_scrap_date,
     download_url_write,
+    find_files_daily,
 )
 from starstream.typing import ScrapDate
 from .utils import (
@@ -48,6 +49,9 @@ class Satellite:
         self.urls: List[str] = []
         self.paths: List[str] = []
 
+    def scrap_path(self, date: str) -> str:
+        return self.filepath(date)
+
     async def _scrap_(self, idx: int) -> None:
         """
         Defines all URLs to be downloaded in order to complete the query.
@@ -77,10 +81,10 @@ class Satellite:
         _ = idx
         raise NotImplementedError("_prep_")
 
-    async def _find_local(self, filepath: str) -> bool:
-        return os.path.exists(filepath)
+    def _find_local(self, date: StarDate) -> bool:
+        return find_files_daily(self, date)
 
-    async def _interval_setup(self, scrap_date: ScrapDate) -> None:
+    def _interval_setup(self, scrap_date: ScrapDate) -> None:
         new_scrap_date = StarInterval(
             create_scrap_date(scrap_date), self.date_sampling, self.format
         )
@@ -89,7 +93,7 @@ class Satellite:
             new_scrap_date,
             desc=f"{self.__class__.__name__}: Looking for missing dates...",
         ):
-            if self._find_local(self.filepath(date.str())):
+            if self._find_local(date):
                 self.dates.append(date)
 
         if self.dates:
@@ -128,13 +132,25 @@ class Satellite:
             self,
             ("_scrap", "_download", "_preprocess"),
             f"{self.__class__.__name__}",
-            scrap_date,
-            "urls",
-            "paths",
         )
 
 
 class CSV(Satellite):
+    def __init__(
+            self,
+            root: str = './data',
+            batch_size: int = 10,
+            date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
+            format: str = "%Y%m%d"
+    ) -> None:
+        super().__init__(
+            root,
+            batch_size,
+            lambda date: osp.join(root, f"{date}.csv"),
+            date_sampling,
+            format
+        )
+
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         return pl.read_csv(self.filepath(date), try_parse_dates=True)
 
@@ -215,13 +231,19 @@ class CSV(Satellite):
         return out_list
 
 
-@dataclass
 class CDAWeb(CSV):
-    phy_obs: List[str] = None
-    variables: List[str] = None
-    url: Callable[[str], str] = None
+    phy_obs: List[str]
+    variables: List[str]
+    url: Callable[[str], str]
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self,
+        root: str = './data',
+        batch_size: int = 10,
+        date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1),
+        format: str = "%Y%m%d"
+    ) -> None:
+        super().__init__(root, batch_size, date_sampling, format)
         self.cdf_path: Callable[[str], str] = lambda date: osp.join(
             self.root, f"{date}.cdf"
         )
@@ -278,12 +300,13 @@ class CDAWeb(CSV):
 
 
 @dataclass
-class Image(Satellite):
+class Img(Satellite):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-    def _find_local(self, filepath: str) -> bool:
-        raise NotImplemented("_path_prep")
+    def _find_local(self, date: str) -> bool:
+        _ = date
+        raise NotImplemented("_find_local")
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         """
