@@ -38,21 +38,28 @@ class GOES16(StarImage):
             lambda name, date: f"https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/goes16/l1b/{self.instrument}/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
         )
         self.granularity: float = granularity
-        self.img_path: Callable[[str], str] = lambda name: os.path.join(self.root_path, name)
+        self.img_path: Callable[[str], str] = lambda name: os.path.join(
+            self.root_path, name
+        )
 
     def _check_data(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
         new_scrap_date: StarInterval = StarInterval(scrap_date)
-        for date in tqdm(new_scrap_date, desc = f'{self.__class__.__name__}: Looking for missing dates...'):
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
+        ):
             if len(glob.glob(self.img_path(date.str() + "*"))) == 0:
                 self.new_scrap_date_list.append(date)
         if self.new_scrap_date_list:
-            os.makedirs(self.root_path, exist_ok = True)
+            os.makedirs(self.root_path, exist_ok=True)
 
     def _get_scrap_tasks(self, session) -> List[Coroutine]:
         return [self.scrap_url(session, date) for date in self.new_scrap_date_list]
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
-    async def scrap_url(self, session, date: StarDate) -> Union[List[Tuple[Union[List[str], None], StarDate]], None]:
+    async def scrap_url(
+        self, session, date: StarDate
+    ) -> Union[List[Tuple[Union[List[str], None], StarDate]], None]:
         url: str = self.url("", date.str())
         async with session.get(url) as request:
             if request.status != 200:
@@ -83,7 +90,7 @@ class GOES16(StarImage):
     async def _download_url(self, session, date: str, name: str) -> None:
         url: str = self.url(name, date)
         path: str = self.img_path(name)
-        async with session.get(url, ssl = False) as request:
+        async with session.get(url, ssl=False) as request:
             data = await request.read()
             async with aiofiles.open(path, "wb") as file:
                 await file.write(data)
@@ -108,7 +115,11 @@ class GOES16(StarImage):
         async with aiofiles.open(path[:-3], "xb") as file:
             await file.write(fits_file)
 
-    async def fetch(self, scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime,datetime]], session) -> None:
+    async def fetch(
+        self,
+        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
+        session,
+    ) -> None:
         if isinstance(scrap_date[0], datetime):
             scrap_date = [scrap_date]
         self._check_data(scrap_date)
@@ -139,7 +150,6 @@ class GOES16(StarImage):
             desc=f"Preprocessing for {self.__class__.__name__}",
         ):
             await asyncio.gather(*prep_tasks[i : i + self.batch_size])
-
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         new_scrap_date: StarInterval = StarInterval(

@@ -22,6 +22,7 @@ import os.path as osp
 import polars as pl
 import numpy as np
 import gzip
+
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
 """
@@ -89,7 +90,6 @@ class Base(StarImage):
         ]
 
 
-
 class SDO:
     class AIA_HR(Base):
         wavelengths: List[str] = [
@@ -105,18 +105,24 @@ class SDO:
             "4500",
         ]
 
-        min_step_size: timedelta = timedelta(seconds = 36)
+        min_step_size: timedelta = timedelta(seconds=36)
 
         def __init__(
             self,
             wavelength: Union[str, int],
             download_path: str = "./data/SDO_HR/",
             batch_size: int = 10,
-            resolution: timedelta = timedelta(minutes = 5),
+            resolution: timedelta = timedelta(minutes=5),
         ) -> None:
-            assert (0 < batch_size <= 10), "Not valid batch_size, should be between 0 and 10"
-            assert (str(wavelength) in self.wavelengths), f"Not valid wavelength: {self.wavelengths}"
-            assert (resolution > self.min_step_size), "Not valid step size, extremely high resolution"
+            assert (
+                0 < batch_size <= 10
+            ), "Not valid batch_size, should be between 0 and 10"
+            assert (
+                str(wavelength) in self.wavelengths
+            ), f"Not valid wavelength: {self.wavelengths}"
+            assert (
+                resolution > self.min_step_size
+            ), "Not valid step size, extremely high resolution"
             self.resolution = resolution
             self.wavelength = wavelength
             self.url = (
@@ -132,11 +138,12 @@ class SDO:
                 lambda webname: "-".join(
                     [item.replace("_", "") for item in webname.split("__")[:-1]]
                 )
-                    + ".jp2"
+                + ".jp2"
             )
 
-            self.path: Callable[[str], str] = lambda name: osp.join(self.root_path, self.name(name))
-
+            self.path: Callable[[str], str] = lambda name: osp.join(
+                self.root_path, self.name(name)
+            )
 
         def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             new_scrap_date: StarInterval = StarInterval(scrap_date)
@@ -217,8 +224,7 @@ class SDO:
                 wavelength in self.wavelengths
             ), f"Not valid wavelength: {self.wavelengths}"
             super().__init__(
-                download_path = osp.join(download_path, wavelength),
-                batch_size = batch_size
+                download_path=osp.join(download_path, wavelength), batch_size=batch_size
             )
             self.wavelength: str = wavelength
             self.url: Callable[[str, str], str] = (
@@ -280,7 +286,9 @@ class SDO:
         async def download_from_name(self, name: str, client) -> None:
             date = name.split("_")[0]
             url = self.url(date, name)
-            async with client.get(url) as response, aiofiles.open(self.jpg_path(self.name(name)), "wb") as f:
+            async with client.get(url) as response, aiofiles.open(
+                self.jpg_path(self.name(name)), "wb"
+            ) as f:
                 await f.write(await response.read())
 
     class EVE(CSV):
@@ -291,9 +299,9 @@ class SDO:
             store_resolution: Optional[timedelta] = None,
         ) -> None:
             super().__init__(
-                root_path = download_path,
-                batch_size = batch_size,
-                csv_path = lambda date: osp.join(download_path, f"{date}.csv"),
+                root_path=download_path,
+                batch_size=batch_size,
+                csv_path=lambda date: osp.join(download_path, f"{date}.csv"),
             )
             if store_resolution is not None:
                 self.resolution = timedelta_to_freq(store_resolution)
@@ -314,7 +322,9 @@ class SDO:
             with fits.open(path) as hdul:
                 data = hdul[1].data
                 print(data)
-                data = np.stack([item[:, 1:].astype(np.float32) for item in data], axis = -1)
+                data = np.stack(
+                    [item[:, 1:].astype(np.float32) for item in data], axis=-1
+                )
                 print(data)
                 df: pl.DataFrame = pl.from_numpy(data)
 
@@ -336,8 +346,10 @@ class SDO:
             df = df.select(["date", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
             df = df.set_sorted("date")
 
-            if resolution:=getattr(self, "resolution", False):
-                df = df.groupby_dynamic("date", every= timedelta_to_freq(resolution)).agg(
+            if resolution := getattr(self, "resolution", False):
+                df = df.groupby_dynamic(
+                    "date", every=timedelta_to_freq(resolution)
+                ).agg(
                     [
                         pl.col("CH_18").mean(),
                         pl.col("CH_26").mean(),
@@ -376,12 +388,10 @@ class SDO:
                 async with aiofiles.open(self.gz_path(day), "wb") as file:
                     await file.write(data)
 
-if __name__ == '__main__':
-    obj = SDO.EVE(batch_size = 1)
-    scrap_date = (datetime(2020, 10, 10) , datetime(2020, 10, 30))
-    DataDownloading(
-        obj,
-        scrap_date
-    )
+
+if __name__ == "__main__":
+    obj = SDO.EVE(batch_size=1)
+    scrap_date = (datetime(2020, 10, 10), datetime(2020, 10, 30))
+    DataDownloading(obj, scrap_date)
     obj.get_numpy(scrap_date)
     obj.get_torch(scrap_date)

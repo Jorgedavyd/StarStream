@@ -12,17 +12,19 @@ import aiofiles
 
 __all__ = ["Dst"]
 
+
 def last_december() -> datetime:
     return datetime(datetime.today().year - 1, 12, 31)
 
+
 class Dst(CSV):
-    def __init__(self, download_path: str =  "./data/Dst", batch_size: int = 10) -> None:
+    def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
         super().__init__(
-            root_path = download_path,
-            batch_size = batch_size,
-            csv_path = lambda date: osp.join(download_path, f"{date}.csv"),
-            date_sampling = relativedelta(months = 1),
-            format = '%Y%m',
+            root_path=download_path,
+            batch_size=batch_size,
+            csv_path=lambda date: osp.join(download_path, f"{date}.csv"),
+            date_sampling=relativedelta(months=1),
+            format="%Y%m",
         )
 
     def _date_to_url(self, month: str) -> str:
@@ -62,6 +64,14 @@ class Dst(CSV):
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         df = pl.read_csv(self.csv_path(date)).get_column("dst_index")
         start_date: datetime = datetime(int(date[:4]), int(date[4:6]), 1)
-        end_date: datetime = start_date + relativedelta(months=1) - timedelta(hours=1)  ## todo
-        full_range = pl.DataFrame({"date": pl.datetime_range(start=start_date, end=end_date, interval='1h', eager = True)})
+        end_date: datetime = (
+            start_date + relativedelta(months=1) - timedelta(hours=1)
+        )  ## todo
+        full_range = pl.DataFrame(
+            {
+                "date": pl.datetime_range(
+                    start=start_date, end=end_date, interval="1h", eager=True
+                )
+            }
+        )
         return full_range.with_columns(df)

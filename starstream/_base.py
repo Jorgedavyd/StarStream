@@ -1,7 +1,12 @@
 from dataclasses import dataclass, field
 from dateutil.relativedelta import relativedelta
 
-from starstream._utils import async_batch, asyncCDF, create_scrap_date, download_url_write
+from starstream._utils import (
+    async_batch,
+    asyncCDF,
+    create_scrap_date,
+    download_url_write,
+)
 from starstream.typing import ScrapDate
 from .utils import (
     StarDate,
@@ -29,13 +34,14 @@ import torch
 from astropy.io import fits
 from io import BytesIO
 
+
 @dataclass
 class Satellite:
-    root: str = field(default = './data/')
-    batch_size: int = field(default = 10)
-    filepath: Callable = field(default = lambda name: osp.join('./data', name))
-    date_sampling: Union[timedelta, relativedelta] = field(default = timedelta(days = 1))
-    format: str = field(default = '%Y%m%d')
+    root: str = field(default="./data/")
+    batch_size: int = field(default=10)
+    filepath: Callable = field(default=lambda name: osp.join("./data", name))
+    date_sampling: Union[timedelta, relativedelta] = field(default=timedelta(days=1))
+    format: str = field(default="%Y%m%d")
 
     def __post_init__(self) -> None:
         self.dates: List[StarDate] = []
@@ -75,7 +81,9 @@ class Satellite:
         return os.path.exists(filepath)
 
     async def _interval_setup(self, scrap_date: ScrapDate) -> None:
-        new_scrap_date = StarInterval(create_scrap_date(scrap_date),self.date_sampling, self.format)
+        new_scrap_date = StarInterval(
+            create_scrap_date(scrap_date), self.date_sampling, self.format
+        )
 
         for date in tqdm(
             new_scrap_date,
@@ -120,12 +128,15 @@ class Satellite:
             self,
             ("_scrap", "_download", "_preprocess"),
             f"{self.__class__.__name__}",
-            scrap_date, 'urls', 'paths'
+            scrap_date,
+            "urls",
+            "paths",
         )
+
 
 class CSV(Satellite):
     def _get_df_unit(self, date: str) -> pl.DataFrame:
-        return pl.read_csv(self.filepath(date), try_parse_dates = True)
+        return pl.read_csv(self.filepath(date), try_parse_dates=True)
 
     def _get_df(self, scrap_date: StarInterval) -> pl.DataFrame:
         return pl.concat([self._get_df_unit(date.str()) for date in scrap_date])
@@ -159,7 +170,12 @@ class CSV(Satellite):
         resolution: Optional[timedelta] = None,
     ) -> Tuple[Tensor, ...]:
         list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
-        return tuple([torch.from_numpy(df.drop("date").to_numpy().astype(np.float32)) for df in list_df])
+        return tuple(
+            [
+                torch.from_numpy(df.drop("date").to_numpy().astype(np.float32))
+                for df in list_df
+            ]
+        )
 
     def get_polars(
         self,
@@ -181,12 +197,15 @@ class CSV(Satellite):
             )
             df: pl.DataFrame = self._get_df(new_scrap_date)
             if resolution is not None:
-                df = df.filter(
-                    (pl.col("date") > new_scrap_date.interval[0].polars())
-                    & (pl.col("date") < new_scrap_date.interval[-1].polars())
-                ).group_by_dynamic("date", every = timedelta_to_freq(resolution)).agg(
-                    pl.col("*")
-                ).mean()
+                df = (
+                    df.filter(
+                        (pl.col("date") > new_scrap_date.interval[0].polars())
+                        & (pl.col("date") < new_scrap_date.interval[-1].polars())
+                    )
+                    .group_by_dynamic("date", every=timedelta_to_freq(resolution))
+                    .agg(pl.col("*"))
+                    .mean()
+                )
             else:
                 df = df.filter(
                     (pl.col("date") > new_scrap_date.interval[0].polars())
@@ -195,6 +214,7 @@ class CSV(Satellite):
             out_list.append(df)
         return out_list
 
+
 @dataclass
 class CDAWeb(CSV):
     phy_obs: List[str] = None
@@ -202,11 +222,20 @@ class CDAWeb(CSV):
     url: Callable[[str], str] = None
 
     def __post_init__(self) -> None:
-        self.cdf_path: Callable[[str], str] = lambda date: osp.join(self.root, f"{date}.cdf")
+        self.cdf_path: Callable[[str], str] = lambda date: osp.join(
+            self.root, f"{date}.cdf"
+        )
 
     async def _scrap_(self, idx: int) -> None:
-        self.paths.extend([self.filepath(date.str()) for date in self.dates[idx : idx + self.batch_size]])
-        self.urls.extend([self.url(date.str()) for date in self.dates[idx : idx + self.batch_size]])
+        self.paths.extend(
+            [
+                self.filepath(date.str())
+                for date in self.dates[idx : idx + self.batch_size]
+            ]
+        )
+        self.urls.extend(
+            [self.url(date.str()) for date in self.dates[idx : idx + self.batch_size]]
+        )
 
     async def _download_(self, idx: int) -> None:
         return await download_url_write(self, idx)
@@ -218,6 +247,7 @@ class CDAWeb(CSV):
             if epoch is None:
                 raise ValueError("Epoch is None")
             epoch = epoch.astype(np.datetime64).reshape(-1)
+
             def data_func(var: str) -> NDArray:
                 file = cdf_file[var][:]
                 if file is not None:
@@ -236,8 +266,10 @@ class CDAWeb(CSV):
                 else:
                     raise ValueError("Found singularity")
             data_columns = np.concatenate(data_columns, -1).astype(np.float32).T
-            time = pl.from_numpy(epoch, schema = ['date'], orient = 'col').cast({"date": pl.Datetime})
-            output = pl.from_numpy(data_columns, schema = self.variables, orient = 'col')
+            time = pl.from_numpy(epoch, schema=["date"], orient="col").cast(
+                {"date": pl.Datetime}
+            )
+            output = pl.from_numpy(data_columns, schema=self.variables, orient="col")
             output = output.with_columns(time)
             output.write_csv(self.filepath(date))
             os.remove(self.cdf_path(date))
@@ -258,8 +290,10 @@ class Image(Satellite):
         Defines the path scrapping method that is used to get all files.
         """
         out: List[str] = []
-        for date in StarInterval(create_scrap_date(scrap_date), self.date_sampling, self.format):
-            out.append(self.filepath(date.str())) # mirar
+        for date in StarInterval(
+            create_scrap_date(scrap_date), self.date_sampling, self.format
+        ):
+            out.append(self.filepath(date.str()))  # mirar
         return out
 
     def process_image(self, content: bytes) -> NDArray:
@@ -293,11 +327,13 @@ class Image(Satellite):
 
         return array
 
-    async def async_numpy(self, scrap_date: List[Tuple[datetime, datetime]]) -> np.ndarray:
+    async def async_numpy(
+        self, scrap_date: List[Tuple[datetime, datetime]]
+    ) -> np.ndarray:
         paths: List[str] = self._path_prep(scrap_date)
         sample_path: str = paths[0]
 
-        match sample_path.split('.')[-1]:
+        match sample_path.split(".")[-1]:
             case "fits":
                 method = self.load_fits
             case "png":
@@ -310,9 +346,7 @@ class Image(Satellite):
                 raise ValueError("Not valid path to an image")
 
         return np.stack(
-            await asyncio.gather(
-                *[method(path) for path in paths]
-            ),
+            await asyncio.gather(*[method(path) for path in paths]),
             axis=0,
         )
 

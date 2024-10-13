@@ -18,6 +18,7 @@ import polars as pl
 
 __all__ = ["PROBA_2"]
 
+
 def min_to_datetime(data: NDArray, date: str) -> NDArray:
     def func(min: int) -> datetime:
         first_date = datetime.strptime(date, "%Y%m%d")
@@ -37,9 +38,9 @@ class PROBA_2:
             store_resolution: Optional[timedelta] = None,
         ):
             super().__init__(
-                root_path = download_path,
-                batch_size = batch_size,
-                csv_path = lambda date: osp.join(download_path, f"{date}.csv")
+                root_path=download_path,
+                batch_size=batch_size,
+                csv_path=lambda date: osp.join(download_path, f"{date}.csv"),
             )
             if store_resolution is not None:
                 self.resolution = timedelta_to_freq(store_resolution)
@@ -73,5 +74,8 @@ class PROBA_2:
                     print(hdul[1].header)
                     data[:, 1:] = data[:, 1:].astype(np.float32)
                     data[:, 0] = min_to_datetime(data[:, 0], day)
-                    pl.from_numpy(data[:,:-1], schema = ['date'] + [f'channel_{i}' for i in range(1,5)]).write_csv(self.csv_path(day))
+                    pl.from_numpy(
+                        data[:, :-1],
+                        schema=["date"] + [f"channel_{i}" for i in range(1, 5)],
+                    ).write_csv(self.csv_path(day))
             os.remove(self.fits_path(day))
