@@ -1,0 +1,3 @@
+- [ ] Change selenium with playwright/scrapy
+- [ ] Implementation of new Satellite abstraction for child objects.
+- [ ] Testing

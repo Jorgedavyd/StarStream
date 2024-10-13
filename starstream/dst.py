@@ -18,11 +18,10 @@ def last_december() -> datetime:
 
 
 class Dst(CSV):
-    def __init__(self, download_path: str = "./data/Dst", batch_size: int = 10) -> None:
+    def __init__(self, root: str = "./data/Dst", batch_size: int = 10) -> None:
         super().__init__(
-            root_path=download_path,
+            root=root,
             batch_size=batch_size,
-            csv_path=lambda date: osp.join(download_path, f"{date}.csv"),
             date_sampling=relativedelta(months=1),
             format="%Y%m",
         )
