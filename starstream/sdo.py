@@ -1,14 +1,14 @@
 from astropy.io import fits
 from starstream._base import CSV
 from starstream.downloader import DataDownloading
-from .utils import (
+from starstream._utils import (
     StarDate,
     datetime,
     StarInterval,
     timedelta_to_freq,
     handle_client_connection_error,
 )
-from ._base import StarImage
+from ._base import Img
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -37,7 +37,7 @@ def date_to_day_of_year(date_string):
     return date_string[:4] + day_of_year_string
 
 
-class Base(StarImage):
+class Base(Img):
     def __init__(self, download_path: str, batch_size: int) -> None:
         super().__init__(download_path, batch_size)
 

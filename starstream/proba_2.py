@@ -1,8 +1,7 @@
 from typing import Callable, Coroutine, List, Optional
 from numpy._typing import NDArray
-from starstream.downloader import DataDownloading
-from ._base import CSV
-from .utils import (
+from starstream._base import CSV
+from starstream._utils import (
     StarDate,
     handle_client_connection_error,
     timedelta_to_freq,

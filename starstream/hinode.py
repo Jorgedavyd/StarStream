@@ -2,9 +2,8 @@ from collections.abc import Coroutine
 from typing import Callable, List, Tuple, Union
 from spacepy import os
 from tqdm import tqdm
-
-from starstream._base import StarImage
-from .utils import (
+from starstream._base import Img
+from starstream._utils import (
     StarDate,
     StarInterval,
     handle_client_connection_error,
@@ -21,19 +20,14 @@ __all__ = ["Hinode"]
 
 
 class Hinode:
-    class XRT(StarImage):
-        def __init__(
-            self, download_path: str = "./data/Hinode/XRT", batch_size: int = 1
-        ) -> None:
-            super().__init__(
-                download_path,
-                batch_size,
-            )
+    class XRT(Img):
+        def __init__(self, root: str = "./data/Hinode/XRT", batch_size: int = 1) -> None:
+            super().__init__(root,batch_size)
             self.path: Callable[[str], str] = lambda name: osp.join(
-                self.root_path, f"{name}.fits"
+                self.root, f"{name}.fits"
             )
             self.scrap_path: Callable[[str], str] = lambda name: osp.join(
-                self.root_path, f"{name}.fits"
+                self.root, f"{name}.fits"
             )
             self.url: Callable[[str, str], str] = (
                 lambda date, hour: f"https://xrt.cfa.harvard.edu/level1/{date[:4]}/{date[4:6]}/{date[6:]}/H{hour[:2]}00/"

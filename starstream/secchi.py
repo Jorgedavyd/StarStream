@@ -1,6 +1,6 @@
 from typing import Coroutine, List, Callable, Sequence, Tuple, Union
-from .utils import StarDate, StarInterval, handle_client_connection_error
-from starstream._base import StarImage
+from starstream._utils import StarDate, StarInterval, handle_client_connection_error
+from starstream._base import Img
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -39,7 +39,7 @@ def parseUrl(url: str) -> Tuple[str, str]:
 
 class STEREO_A:
     class SECCHI:
-        class EUVI(StarImage):
+        class EUVI(Img):
             def __init__(
                 self,
                 wavelength: str | Sequence[str],

@@ -45,27 +45,30 @@ def syncTAR(file_obj: BytesIO):
 
 
 async def asyncGeneral(
-    obj: Union[str, BytesIO], processing: Callable, read_method: Callable, *args
+    obj: Union[str, BytesIO], processing: Optional[Callable], read_method: Callable, *args
 ) -> None:
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as thread:
         general_file = await loop.run_in_executor(thread, read_method, obj)
-    return await coroutine_handler(processing, general_file, *args)
+    if processing is not None:
+        return await coroutine_handler(processing, general_file, *args)
+    else:
+        return general_file
 
 
-async def asyncCDF(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
+async def asyncCDF(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
     return await asyncGeneral(obj, processing, pycdf.CDF, *args)
 
 
-async def asyncZIP(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
+async def asyncZIP(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
     return await asyncGeneral(obj, processing, zipfile.ZipFile, *args)
 
 
-async def asyncGZIP(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
+async def asyncGZIP(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
     return await asyncGeneral(obj, processing, syncGZ, *args)
 
 
-async def asyncFITS(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
+async def asyncFITS(obj: Union[str, BytesIO], processing: Optional[Callable] = None, *args) -> Any:
     return await asyncGeneral(obj, processing, fits.open, *args)
 
 
@@ -258,19 +261,25 @@ def not_valid_query(self, url: str) -> None:
     return
 
 
-async def check_response(self, response, url: str) -> Union[bytes, None]:
+async def check_response_bytes(self, response, url: str) -> Any:
     if response is not None:
         content = await response.read()
         if response.status != 200 or content.startswith(b"<html>"):
             not_valid_query(self, url)
         return content
 
+async def check_response_text(self, response, url: str) -> Any:
+    if response is not None:
+        content = await response.text()
+        if response.status != 200:
+            not_valid_query(self, url)
+        return content
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_write(self, idx: int) -> None:
     url: str = self.urls[idx]
     async with self.session.get(url, ssl=False) as response:
-        content = await check_response(self, response, url)
+        content = await check_response_bytes(self, response, url)
         if content is not None:
             async with aiofiles.open(self.paths[idx], "wb") as f:
                 await f.write(content)
@@ -278,17 +287,27 @@ async def download_url_write(self, idx: int) -> None:
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_prep(
-    self, idx: int, method: Callable[[bytes], Coroutine]
-) -> None:
+    self, idx: int, method: Callable[[bytes], Coroutine], *args
+) -> Any:
     url: str = self.urls[idx]
     async with self.session.get(url, ssl=False) as response:
-        content = await check_response(self, response, url)
+        content = await check_response_bytes(self, response, url)
         if content is not None:
-            await coroutine_handler(method, content)
+            return await coroutine_handler(method, content, *args)
 
+@handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
+async def scrap_url_default(
+    self, idx: int, method: Callable[[bytes], Coroutine], *args: Any
+) -> Any:
+    url: str = self.scrap_urls[idx]
+    async with self.session.get(url, ssl=False) as response:
+        content = await check_response_text(self, response, url)
+        if content is not None:
+            return await coroutine_handler(method, content, *args)
 
-def find_files_glob(self: Satellite, date: str) -> bool:
-    return bool(len(glob(self.scrap_path(date))))
+def find_files_glob(self: Satellite, date: str) -> Tuple[bool, List[str]]:
+    out= glob(self.scrap_path(date))
+    return bool(len(out)), out
 
 def find_files_daily(self: Satellite, date: str) -> bool:
     return osp.exists(self.scrap_path(date))

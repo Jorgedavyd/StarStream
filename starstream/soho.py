@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import List, Tuple, Union
 from dateutil.relativedelta import relativedelta
-from .utils import StarInterval, asyncTAR, handle_client_connection_error
+from starstream._utils import StarInterval, asyncTAR, handle_client_connection_error
 from datetime import timedelta, datetime
 from ._base import CDAWeb, CSV
 from io import BytesIO

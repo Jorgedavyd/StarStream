@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from glob import glob
 from dateutil.relativedelta import relativedelta
 
 from starstream._utils import (
@@ -7,6 +8,7 @@ from starstream._utils import (
     create_scrap_date,
     download_url_write,
     find_files_daily,
+    find_files_glob,
 )
 from starstream.typing import ScrapDate
 from .utils import (
@@ -81,7 +83,7 @@ class Satellite:
         _ = idx
         raise NotImplementedError("_prep_")
 
-    def _find_local(self, date: StarDate) -> bool:
+    def _find_local(self, date: StarDate) -> Union[bool, int]:
         return find_files_daily(self, date)
 
     def _interval_setup(self, scrap_date: ScrapDate) -> None:
@@ -304,19 +306,16 @@ class Img(Satellite):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-    def _find_local(self, date: str) -> bool:
-        _ = date
-        raise NotImplemented("_find_local")
+    def _find_local(self, date: str) -> Tuple[bool, List[str]]:
+        return find_files_glob(self, date)
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         """
         Defines the path scrapping method that is used to get all files.
         """
         out: List[str] = []
-        for date in StarInterval(
-            create_scrap_date(scrap_date), self.date_sampling, self.format
-        ):
-            out.append(self.filepath(date.str()))  # mirar
+        for date in StarInterval(create_scrap_date(scrap_date), self.date_sampling, self.format):
+            out.extend(self._find_local(date.str())[-1])
         return out
 
     def process_image(self, content: bytes) -> NDArray:

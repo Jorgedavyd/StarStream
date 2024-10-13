@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from starstream._base import CSV
-from .utils import StarDate, StarInterval
+from starstream._utils import StarDate, StarInterval
 from datetime import datetime, timedelta
 from viresclient import SwarmRequest
 import pandas as pd

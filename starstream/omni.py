@@ -1,17 +1,14 @@
 from dateutil.relativedelta import relativedelta
-from typing import List, Tuple
-from datetime import datetime
 from ._base import CDAWeb
 
 __all__ = ["OMNI"]
 
-
 class OMNI(CDAWeb):
     def __init__(
-        self, download_path: str = "./data/OMNI/HRO2/", batch_size: int = 10
+        self, root: str = "./data/OMNI/HRO2/", batch_size: int = 10
     ) -> None:
         super().__init__(
-            download_path=download_path,
+            root=root,
             batch_size=batch_size,
             format="%Y%m",
             date_sampling=relativedelta(months=1),
@@ -35,6 +32,3 @@ class OMNI(CDAWeb):
             "Vz",
         ]
         self.variables = self.phy_obs
-
-    async def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-        return await super()._check_tasks(scrap_date)
