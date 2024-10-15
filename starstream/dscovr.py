@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from tqdm import tqdm
 from starstream._base import CSV
-from starstream._utils import asyncGZIP, create_scrap_date, download_url_prep
+from starstream._utils import asyncGZIP, create_scrap_date, download_url_prep, handle_client_connection_error
 from starstream.typing import ScrapDate
-from starstream.utils import handle_client_connection_error
 from datetime import timedelta, datetime
 from io import BytesIO
 import xarray as xr
@@ -37,14 +36,12 @@ class DSCOVR:
                 osp.join(osp.dirname(__file__), "trivials/url.txt"), "r"
             ) as file:
                 lines = await file.readlines()
-            url_list = []
             for url in tqdm(
                 lines, desc=f"{self.__class__.__name__}: Getting the URLs..."
             ):
                 for date in self.dates:
                     if date.str() + "000000" in url and self.achronym in url:
-                        url_list.append(url)
-            self.urls = url_list
+                        self.urls.append(url)
 
         async def _check_update(
             self, scrap_date: List[Tuple[datetime, datetime]]
@@ -105,7 +102,10 @@ class DSCOVR:
             with open(url_path, "a") as file:
                 file.write(value[5:].replace(" ", "\n") + "\n")
             update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
-            os.remove(update_path)
+            try:
+                os.remove(update_path)
+            except FileNotFoundError:
+                pass
             with open(update_path, "x") as file:
                 file.write(scrap_date[-1].strftime("%Y%m%d"))
 

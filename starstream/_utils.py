@@ -28,7 +28,6 @@ from itertools import chain
 import polars as pl
 from inspect import iscoroutinefunction
 from concurrent.futures import ThreadPoolExecutor
-from starstream._base import Satellite
 from glob import glob
 import os.path as osp
 
@@ -220,8 +219,8 @@ def create_scrap_date(scrap_date: ScrapDate):
 ## Utils for downloading
 
 
-async def async_batch(self: Satellite, methods: Sequence[str], desc: str) -> None:
-    for idx in tqdm(range(0, self.dates, self.batch_size), desc=desc):
+async def async_batch(self, methods: Sequence[str], desc: str) -> None:
+    for idx in tqdm(range(0, len(self.dates), self.batch_size), desc=desc):
         for method in methods:
             await asyncio.gather(
                 *[
@@ -319,10 +318,10 @@ async def scrap_url_default(
             return await coroutine_handler(method, content, *args)
 
 
-def find_files_glob(self: Satellite, date: str) -> Tuple[bool, List[str]]:
+def find_files_glob(self, date: str) -> Tuple[bool, List[str]]:
     out = glob(self.scrap_path(date))
     return bool(len(out)), out
 
 
-def find_files_daily(self: Satellite, date: str) -> bool:
+def find_files_daily(self, date: str) -> bool:
     return osp.exists(self.scrap_path(date))

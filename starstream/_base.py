@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from glob import glob
 from dateutil.relativedelta import relativedelta
-
 from starstream._utils import (
     async_batch,
     asyncCDF,
@@ -9,14 +7,12 @@ from starstream._utils import (
     download_url_write,
     find_files_daily,
     find_files_glob,
-)
-from starstream.typing import ScrapDate
-from .utils import (
     StarDate,
     coroutine_handler,
     StarInterval,
     timedelta_to_freq,
 )
+from starstream.typing import ScrapDate
 from PIL import Image
 from typing import Any, Callable, List, Optional, Tuple, Union
 from datetime import timedelta, datetime
@@ -36,6 +32,7 @@ from concurrent.futures import ThreadPoolExecutor
 import torch
 from astropy.io import fits
 from io import BytesIO
+import os.path as osp
 
 
 @dataclass
@@ -45,11 +42,9 @@ class Satellite:
     filepath: Callable = field(default=lambda name: osp.join("./data", name))
     date_sampling: Union[timedelta, relativedelta] = field(default=timedelta(days=1))
     format: str = field(default="%Y%m%d")
-
-    def __post_init__(self) -> None:
-        self.dates: List[StarDate] = []
-        self.urls: List[str] = []
-        self.paths: List[str] = []
+    dates: List[StarDate] = field(default_factory = list)
+    paths: List[str] = field(default_factory = list)
+    urls: List[str] = field(default_factory = list)
 
     def scrap_path(self, date: str) -> str:
         return self.filepath(date)
@@ -84,7 +79,7 @@ class Satellite:
         raise NotImplementedError("_prep_")
 
     def _find_local(self, date: StarDate) -> Union[bool, int]:
-        return find_files_daily(self, date)
+        return find_files_daily(self, date.str())
 
     def _interval_setup(self, scrap_date: ScrapDate) -> None:
         new_scrap_date = StarInterval(
@@ -95,7 +90,7 @@ class Satellite:
             new_scrap_date,
             desc=f"{self.__class__.__name__}: Looking for missing dates...",
         ):
-            if self._find_local(date):
+            if not self._find_local(date):
                 self.dates.append(date)
 
         if self.dates:
@@ -142,13 +137,14 @@ class CSV(Satellite):
         self,
         root: str = "./data",
         batch_size: int = 10,
+        filepath: Callable = lambda date: osp.join('./data', f"{date}.csv"),
         date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
         format: str = "%Y%m%d",
     ) -> None:
         super().__init__(
             root,
             batch_size,
-            lambda date: osp.join(root, f"{date}.csv"),
+            filepath,
             date_sampling,
             format,
         )
@@ -245,10 +241,14 @@ class CDAWeb(CSV):
         date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
         format: str = "%Y%m%d",
     ) -> None:
-        super().__init__(root, batch_size, date_sampling, format)
-        self.cdf_path: Callable[[str], str] = lambda date: osp.join(
-            self.root, f"{date}.cdf"
+        super().__init__(
+            root,
+            batch_size,
+            lambda date: osp.join(self.root, f"{date}.cdf"),
+            date_sampling,
+            format
         )
+        self.csv_path = lambda date: osp.join(self.root, f"{date}.csv"),
 
     async def _scrap_(self, idx: int) -> None:
         self.paths.extend(
@@ -295,17 +295,14 @@ class CDAWeb(CSV):
             )
             output = pl.from_numpy(data_columns, schema=self.variables, orient="col")
             output = output.with_columns(time)
-            output.write_csv(self.filepath(date))
-            os.remove(self.cdf_path(date))
+            output.write_csv(self.csv_path(date))
+            os.remove(self.filepath(date))
 
-        await asyncCDF(self.cdf_path(self.dates[idx].str()), processing)
+        await asyncCDF(self.filepath(self.dates[idx].str()), processing)
 
 
 @dataclass
 class Img(Satellite):
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
     def _find_local(self, date: str) -> Tuple[bool, List[str]]:
         return find_files_glob(self, date)
 
