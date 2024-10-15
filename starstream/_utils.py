@@ -298,6 +298,7 @@ async def download_url_write(self, idx: int) -> None:
     except IndexError:
         return
 
+
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_prep(
     self, idx: int, method: Callable[[bytes], Coroutine], *args
@@ -312,7 +313,6 @@ async def download_url_prep(
         return
 
 
-
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def scrap_url_default(
     self, idx: int, method: Callable[[bytes], Coroutine], *args: Any
@@ -325,6 +325,7 @@ async def scrap_url_default(
                 return await coroutine_handler(method, content, *args)
     except IndexError:
         return
+
 
 def find_files_glob(self, date: str) -> Tuple[bool, List[str]]:
     out = glob(self.scrap_path(date))

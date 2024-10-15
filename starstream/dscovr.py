@@ -50,7 +50,9 @@ class DSCOVR:
         async def _check_update(
             self, scrap_date: List[Tuple[datetime, datetime]]
         ) -> None:
-            update_path: str = osp.join(osp.dirname(__file__), f"trivials/last_update.txt")
+            update_path: str = osp.join(
+                osp.dirname(__file__), f"trivials/last_update.txt"
+            )
             scrap_date = sorted(
                 scrap_date,
                 key=lambda key: key[-1],
@@ -100,16 +102,20 @@ class DSCOVR:
                 await browser.close()
             soup = BeautifulSoup(html, "html.parser")
             try:
-                value: str = soup.find("input", class_="form-control input-sm cursor-text")["value"]
+                value: str = soup.find(
+                    "input", class_="form-control input-sm cursor-text"
+                )["value"]
             except AttributeError:
-                print("Failed to find the input element. Check if the page structure has changed.")
+                print(
+                    "Failed to find the input element. Check if the page structure has changed."
+                )
                 return
             basepath: str = osp.join(osp.dirname(__file__), "trivials")
             url_path: str = osp.join(basepath, "url.txt")
             os.makedirs(basepath, exist_ok=True)
             output = value.split()[1:]
             async with aiofiles.open(url_path, "w") as file:
-                await file.write('\n'.join(output))
+                await file.write("\n".join(output))
             update_path = osp.join(basepath, "last_update.txt")
             async with aiofiles.open(update_path, "w") as file:
                 await file.write(scrap_date[-1].strftime("%Y%m%d"))
@@ -127,7 +133,9 @@ class DSCOVR:
         )
         async def _download_(self, idx: int) -> None:
             async def anonymous(gzip_file):
-               await asyncGZIP( BytesIO(gzip_file), self._gz_processing, self.dates[idx].str())
+                await asyncGZIP(
+                    BytesIO(gzip_file), self._gz_processing, self.dates[idx].str()
+                )
 
             await download_url_prep(self, idx, anonymous)
 

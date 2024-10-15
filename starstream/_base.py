@@ -268,6 +268,7 @@ class CDAWeb(CSV):
             date: str = self.dates[idx].str()
         except IndexError:
             return
+
         def processing(cdf_file) -> None:
             epoch = cdf_file["Epoch"][:]
             if epoch is None:
