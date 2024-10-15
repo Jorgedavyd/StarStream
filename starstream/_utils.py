@@ -288,35 +288,43 @@ async def check_response_text(self, response, url: str) -> Any:
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_write(self, idx: int) -> None:
-    url: str = self.urls[idx]
-    async with self.session.get(url, ssl=False) as response:
-        content = await check_response_bytes(self, response, url)
-        if content is not None:
-            async with aiofiles.open(self.paths[idx], "wb") as f:
-                await f.write(content)
-
+    try:
+        url: str = self.urls[idx]
+        async with self.session.get(url, ssl=False) as response:
+            content = await check_response_bytes(self, response, url)
+            if content is not None:
+                async with aiofiles.open(self.paths[idx], "wb") as f:
+                    await f.write(content)
+    except IndexError:
+        return
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_prep(
     self, idx: int, method: Callable[[bytes], Coroutine], *args
 ) -> Any:
-    url: str = self.urls[idx]
-    async with self.session.get(url, ssl=False) as response:
-        content = await check_response_bytes(self, response, url)
-        if content is not None:
-            return await coroutine_handler(method, content, *args)
+    try:
+        url: str = self.urls[idx]
+        async with self.session.get(url, ssl=False) as response:
+            content = await check_response_bytes(self, response, url)
+            if content is not None:
+                return await coroutine_handler(method, content, *args)
+    except IndexError:
+        return
+
 
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def scrap_url_default(
     self, idx: int, method: Callable[[bytes], Coroutine], *args: Any
 ) -> Any:
-    url: str = self.scrap_urls[idx]
-    async with self.session.get(url, ssl=False) as response:
-        content = await check_response_text(self, response, url)
-        if content is not None:
-            return await coroutine_handler(method, content, *args)
-
+    try:
+        url: str = self.scrap_urls[idx]
+        async with self.session.get(url, ssl=False) as response:
+            content = await check_response_text(self, response, url)
+            if content is not None:
+                return await coroutine_handler(method, content, *args)
+    except IndexError:
+        return
 
 def find_files_glob(self, date: str) -> Tuple[bool, List[str]]:
     out = glob(self.scrap_path(date))

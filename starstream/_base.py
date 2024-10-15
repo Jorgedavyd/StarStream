@@ -28,7 +28,6 @@ import asyncio
 import torch
 import os
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 import torch
 from astropy.io import fits
 from io import BytesIO
@@ -244,16 +243,16 @@ class CDAWeb(CSV):
         super().__init__(
             root,
             batch_size,
-            lambda date: osp.join(self.root, f"{date}.cdf"),
+            lambda date: osp.join(self.root, f"{date}.csv"),
             date_sampling,
             format,
         )
-        self.csv_path = (lambda date: osp.join(self.root, f"{date}.csv"),)
+        self.cdf_path = lambda date: osp.join(self.root, f"{date}.cdf")
 
     async def _scrap_(self, idx: int) -> None:
         self.paths.extend(
             [
-                self.filepath(date.str())
+                self.cdf_path(date.str())
                 for date in self.dates[idx : idx + self.batch_size]
             ]
         )
@@ -265,8 +264,11 @@ class CDAWeb(CSV):
         return await download_url_write(self, idx)
 
     async def _prep_(self, idx: int):
+        try:
+            date: str = self.dates[idx].str()
+        except IndexError:
+            return
         def processing(cdf_file) -> None:
-            date = self.dates[idx].str()
             epoch = cdf_file["Epoch"][:]
             if epoch is None:
                 raise ValueError("Epoch is None")
@@ -295,10 +297,14 @@ class CDAWeb(CSV):
             )
             output = pl.from_numpy(data_columns, schema=self.variables, orient="col")
             output = output.with_columns(time)
-            output.write_csv(self.csv_path(date))
-            os.remove(self.filepath(date))
+            output.write_csv(self.filepath(date))
+            os.remove(self.cdf_path(date))
 
-        await asyncCDF(self.filepath(self.dates[idx].str()), processing)
+        try:
+            path: str = self.paths[idx]
+            await asyncCDF(path, processing)
+        except IndexError:
+            return
 
 
 @dataclass
@@ -333,8 +339,7 @@ class Img(Satellite):
             content = await file.read()
 
         loop = asyncio.get_running_loop()
-        with ThreadPoolExecutor() as pool:
-            array = await loop.run_in_executor(pool, self.process_fits, content)
+        array = await loop.run_in_executor(None, self.process_fits, content)
 
         return array
 
@@ -343,8 +348,7 @@ class Img(Satellite):
             content = await file.read()
 
         loop = asyncio.get_running_loop()
-        with ThreadPoolExecutor() as pool:
-            array = await loop.run_in_executor(pool, self.process_image, content)
+        array = await loop.run_in_executor(None, self.process_image, content)
 
         return array
 

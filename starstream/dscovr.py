@@ -14,12 +14,10 @@ import xarray as xr
 import os
 import time
 from typing import Tuple, List
-from selenium.webdriver.chrome.options import Options
 import os.path as osp
 from bs4 import BeautifulSoup
-from selenium import webdriver
-import chromedriver_binary
 import aiofiles
+from playwright.async_api import async_playwright
 
 __all__ = ["DSCOVR"]
 
@@ -35,6 +33,7 @@ class DSCOVR:
                 self.level == "l2" or self.level == "l1"
             ), "Not valid data product level"
             assert self.achronym is not None, "Achronym not passed"
+            self.filepath = lambda date: osp.join(self.root, f"{date}.csv")
 
         async def _get_urls(self) -> None:
             async with aiofiles.open(
@@ -46,12 +45,12 @@ class DSCOVR:
             ):
                 for date in self.dates:
                     if date.str() + "000000" in url and self.achronym in url:
-                        self.urls.append(url)
+                        self.urls.append(url[:-1])
 
         async def _check_update(
             self, scrap_date: List[Tuple[datetime, datetime]]
         ) -> None:
-            update_path: str = osp.join(osp.dirname(__file__), f"trivials/update.txt")
+            update_path: str = osp.join(osp.dirname(__file__), f"trivials/last_update.txt")
             scrap_date = sorted(
                 scrap_date,
                 key=lambda key: key[-1],
@@ -66,7 +65,7 @@ class DSCOVR:
                         )
             except FileNotFoundError:
                 os.makedirs(osp.dirname(update_path), exist_ok=True)
-                self._scrap_links(
+                await self._scrap_links(
                     (datetime(2016, 7, 26), datetime.today() - timedelta(days=1))
                 )
 
@@ -86,32 +85,33 @@ class DSCOVR:
 
         async def _scrap_(self, idx: int) -> None:
             _ = idx
-            pass
 
         async def _scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
             print("Updating url dataset...")
             unix = self._to_unix(scrap_date)
             url = f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
-            op = Options()
-            op.add_argument("headless")
-            driver = webdriver.Chrome(options=op)
-            driver.get(url)
-            time.sleep(10)
-            html = driver.page_source
-            driver.quit()
+
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                await page.goto(url)
+                await page.wait_for_timeout(10000)
+                html = await page.content()
+                await browser.close()
             soup = BeautifulSoup(html, "html.parser")
-            value: str = soup.find("input", class_="form-control input-sm cursor-text")[
-                "value"
-            ]
-            url_path = osp.join(osp.dirname(__file__), "trivials/url.txt")
-            async with aiofiles.open(url_path, "a") as file:
-                await file.writelines(value.split()[1:])
-            update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
             try:
-                os.remove(update_path)
-            except FileNotFoundError:
-                pass
-            async with aiofiles.open(update_path, "x") as file:
+                value: str = soup.find("input", class_="form-control input-sm cursor-text")["value"]
+            except AttributeError:
+                print("Failed to find the input element. Check if the page structure has changed.")
+                return
+            basepath: str = osp.join(osp.dirname(__file__), "trivials")
+            url_path: str = osp.join(basepath, "url.txt")
+            os.makedirs(basepath, exist_ok=True)
+            output = value.split()[1:]
+            async with aiofiles.open(url_path, "w") as file:
+                await file.write('\n'.join(output))
+            update_path = osp.join(basepath, "last_update.txt")
+            async with aiofiles.open(update_path, "w") as file:
                 await file.write(scrap_date[-1].strftime("%Y%m%d"))
 
         def _gz_processing(self, gz_file, date: str) -> None:
@@ -126,13 +126,13 @@ class DSCOVR:
             default_cooldown=5, max_retries=3, increment="exp"
         )
         async def _download_(self, idx: int) -> None:
-            return await download_url_prep(
-                self,
-                idx,
-                lambda gzip_file: asyncGZIP(
-                    BytesIO(gzip_file), self._gz_processing, self.dates[idx].str()
-                ),
-            )
+            async def anonymous(gzip_file):
+               await asyncGZIP( BytesIO(gzip_file), self._gz_processing, self.dates[idx].str())
+
+            await download_url_prep(self, idx, anonymous)
+
+        async def _prep_(self, idx: int) -> None:
+            _ = idx
 
     class FaradayCup(__Base):
         def __init__(
@@ -145,7 +145,7 @@ class DSCOVR:
                 root=osp.join(download_path, level, "faraday"),
                 batch_size=batch_size,
                 level=level,
-                achronym="fc1" if level == "l1" else "fm1",
+                achronym="fc1" if level == "l1" else "f1m",
             )
 
     class Magnetometer(__Base):
