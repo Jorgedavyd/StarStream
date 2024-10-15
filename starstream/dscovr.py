@@ -56,7 +56,7 @@ class DSCOVR:
                     lines = await file.readlines()
                     date = datetime.strptime(lines[0], "%Y%m%d")
                     if scrap_date[-1][-1] > date:
-                        self._scrap_links(
+                        await self._scrap_links(
                             (date + timedelta(days=1), scrap_date[-1][-1])
                         )
             except FileNotFoundError:
@@ -83,7 +83,7 @@ class DSCOVR:
             _ = idx
             pass
 
-        def _scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
+        async def _scrap_links(self, scrap_date: Tuple[datetime, datetime]) -> None:
             print("Updating url dataset...")
             unix = self._to_unix(scrap_date)
             url = f"https://www.ngdc.noaa.gov/dscovr/portal/index.html#/download/{unix[0]};{unix[-1]}/f1m;fc1;m1m;mg1"
@@ -95,19 +95,19 @@ class DSCOVR:
             html = driver.page_source
             driver.quit()
             soup = BeautifulSoup(html, "html.parser")
-            value = soup.find("input", class_="form-control input-sm cursor-text")[
+            value: str = soup.find("input", class_="form-control input-sm cursor-text")[
                 "value"
             ]
             url_path = osp.join(osp.dirname(__file__), "trivials/url.txt")
-            with open(url_path, "a") as file:
-                file.write(value[5:].replace(" ", "\n") + "\n")
+            async with aiofiles.open(url_path, "a") as file:
+                await file.writelines(value.split()[1:])
             update_path = osp.join(osp.dirname(__file__), "trivials/last_update.txt")
             try:
                 os.remove(update_path)
             except FileNotFoundError:
                 pass
-            with open(update_path, "x") as file:
-                file.write(scrap_date[-1].strftime("%Y%m%d"))
+            async with aiofiles.open(update_path, "x") as file:
+                await file.write(scrap_date[-1].strftime("%Y%m%d"))
 
         def _gz_processing(self, gz_file, date: str) -> None:
             dataset = xr.open_dataset(gz_file.read())
