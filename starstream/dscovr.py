@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 from tqdm import tqdm
 from starstream._base import CSV
-from starstream._utils import asyncGZIP, create_scrap_date, download_url_prep, handle_client_connection_error
+from starstream._utils import (
+    asyncGZIP,
+    create_scrap_date,
+    download_url_prep,
+    handle_client_connection_error,
+)
 from starstream.typing import ScrapDate
 from datetime import timedelta, datetime
 from io import BytesIO

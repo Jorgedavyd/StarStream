@@ -42,9 +42,9 @@ class Satellite:
     filepath: Callable = field(default=lambda name: osp.join("./data", name))
     date_sampling: Union[timedelta, relativedelta] = field(default=timedelta(days=1))
     format: str = field(default="%Y%m%d")
-    dates: List[StarDate] = field(default_factory = list)
-    paths: List[str] = field(default_factory = list)
-    urls: List[str] = field(default_factory = list)
+    dates: List[StarDate] = field(default_factory=list)
+    paths: List[str] = field(default_factory=list)
+    urls: List[str] = field(default_factory=list)
 
     def scrap_path(self, date: str) -> str:
         return self.filepath(date)
@@ -137,7 +137,7 @@ class CSV(Satellite):
         self,
         root: str = "./data",
         batch_size: int = 10,
-        filepath: Callable = lambda date: osp.join('./data', f"{date}.csv"),
+        filepath: Callable = lambda date: osp.join("./data", f"{date}.csv"),
         date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
         format: str = "%Y%m%d",
     ) -> None:
@@ -246,9 +246,9 @@ class CDAWeb(CSV):
             batch_size,
             lambda date: osp.join(self.root, f"{date}.cdf"),
             date_sampling,
-            format
+            format,
         )
-        self.csv_path = lambda date: osp.join(self.root, f"{date}.csv"),
+        self.csv_path = (lambda date: osp.join(self.root, f"{date}.csv"),)
 
     async def _scrap_(self, idx: int) -> None:
         self.paths.extend(
