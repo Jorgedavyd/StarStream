@@ -20,9 +20,11 @@ class STEREO_A:
                 batch_size: int = 10,
             ) -> None:
                 super().__init__(
-                    root = osp.join(root, wavelength),
-                    batch_size = batch_size,
-                    filepath = lambda name: osp.join(root, wavelength, f"{name.split('_')[-2][:3]}", name)
+                    root=osp.join(root, wavelength),
+                    batch_size=batch_size,
+                    filepath=lambda name: osp.join(
+                        root, wavelength, f"{name.split('_')[-2][:3]}", name
+                    ),
                 )
                 self.wavelength: str = wavelength
                 self.url: Callable[[str, str], str] = (
@@ -31,15 +33,15 @@ class STEREO_A:
                 self.scrap_url: Callable[[str], str] = (
                     lambda date: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{self.wavelength}_A"
                 )
-                self.scrap_path: Callable[[str], str] = (
-                    lambda date: osp.join(
-                        self.root, self.wavelength, f"{date}*"
-                    )
+                self.scrap_path: Callable[[str], str] = lambda date: osp.join(
+                    self.root, self.wavelength, f"{date}*"
                 )
 
             def _interval_setup(self, scrap_date: ScrapDate) -> None:
                 super()._interval_setup(scrap_date)
-                self.scrap_urls: List[str] = [self.scrap_url(date.str()) for date in self.dates]
+                self.scrap_urls: List[str] = [
+                    self.scrap_url(date.str()) for date in self.dates
+                ]
 
             async def _scrap_(self, idx: int) -> None:
                 try:
@@ -56,8 +58,12 @@ class STEREO_A:
                         "a", href=lambda key: key.endswith("R.png")
                     )
                 ]
-                self.paths.extend([self.filepath(name) for name in names if name is not None])
-                self.urls.extend([self.url(date, name) for name in names if name is not None])
+                self.paths.extend(
+                    [self.filepath(name) for name in names if name is not None]
+                )
+                self.urls.extend(
+                    [self.url(date, name) for name in names if name is not None]
+                )
 
             async def _download_(self, idx: int) -> None:
                 await download_url_write(self, idx)

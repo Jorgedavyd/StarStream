@@ -62,9 +62,11 @@ class Dst(CSV):
         data = list(map(lambda x: x.replace("-", " -").replace("+", " +"), data))
         data = list(map(lambda x: x.split(), data))
 
-        value: List = list(map(float, chain.from_iterable([sample[3:-1] for sample in data])))
+        value: List = list(
+            map(float, chain.from_iterable([sample[3:-1] for sample in data]))
+        )
         value.insert(0, "dst_index")
-        value = '\n'.join(list(map(lambda x: str(x) + ',', value)))
+        value = "\n".join(list(map(lambda x: str(x) + ",", value)))
 
         async with aiofiles.open(self.filepath(date.str()), "w") as f:
             await f.write(value)

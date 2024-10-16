@@ -83,11 +83,7 @@ async def asyncFITS(
     return await asyncGeneral(obj, processing, fits.open, *args)
 
 
-async def asyncGZFITS(
-    obj: Union[str, BytesIO],
-    processing: Callable,
-    *args
-) -> None:
+async def asyncGZFITS(obj: Union[str, BytesIO], processing: Callable, *args) -> None:
     gz_obj = await asyncGZIP(obj)
     fits_file = BytesIO(gz_obj.read())
     return await asyncFITS(fits_file, processing, *args)

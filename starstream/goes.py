@@ -13,6 +13,7 @@ import os
 
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
 
+
 class GOES16(Img):
     def __init__(
         self,

@@ -149,7 +149,9 @@ class CSV(Satellite):
             format,
         )
         if self.filepath is None:
-            self.filepath: Callable[[str], str] = lambda date: osp.join(self.root, f"{date}.csv")
+            self.filepath: Callable[[str], str] = lambda date: osp.join(
+                self.root, f"{date}.csv"
+            )
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         return pl.read_csv(self.filepath(date), try_parse_dates=True)
@@ -204,7 +206,7 @@ class CSV(Satellite):
         self,
         scrap_date: Union[ScrapDate, List[tuple]],
         resolution: Optional[timedelta] = None,
-        agg_func: Callable = pl.mean
+        agg_func: Callable = pl.mean,
     ) -> List[pl.DataFrame]:
         """
         Process data using Polars based on given scrap dates and optional resolution.
@@ -222,7 +224,9 @@ class CSV(Satellite):
             out_list: List[pl.DataFrame] = []
 
             for tuple_date in scrap_date:
-                new_scrap_date = StarInterval([tuple_date], self.date_sampling, self.format)
+                new_scrap_date = StarInterval(
+                    [tuple_date], self.date_sampling, self.format
+                )
                 df: pl.DataFrame = self._get_df(new_scrap_date)
 
                 # Filter the dataframe to include only dates within the interval
@@ -233,13 +237,23 @@ class CSV(Satellite):
 
                 if resolution is not None:
                     resolution_seconds = int(resolution.total_seconds())
-                    df = df.with_columns([
-                        (pl.col("date").cast(pl.Int64) / resolution_seconds).floor().alias("group")
-                    ])
-                    df = df.group_by("group").agg([
-                        pl.col("date").first().alias("date"),
-                        pl.all().exclude(["date", "group"]).apply(agg_func)
-                    ]).sort("date")
+                    df = df.with_columns(
+                        [
+                            (pl.col("date").cast(pl.Int64) / resolution_seconds)
+                            .floor()
+                            .alias("group")
+                        ]
+                    )
+                    df = (
+                        df.group_by("group")
+                        .agg(
+                            [
+                                pl.col("date").first().alias("date"),
+                                pl.all().exclude(["date", "group"]).apply(agg_func),
+                            ]
+                        )
+                        .sort("date")
+                    )
                     df = df.drop("group")
                 out_list.append(df)
             return out_list

@@ -337,9 +337,7 @@ class SDO:
 
         def preprocessing(self, hdul, date: str) -> None:
             data = hdul[1].data
-            data = np.stack(
-                [item[:, 1:].astype(np.float32) for item in data], axis=-1
-            )
+            data = np.stack([item[:, 1:].astype(np.float32) for item in data], axis=-1)
             df: pl.DataFrame = pl.from_numpy(data)
             df = df.with_columns(
                 [
