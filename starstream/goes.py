@@ -1,6 +1,11 @@
+import gzip
+from io import BytesIO
+import numpy as np
+from PIL import Image
 from starstream._utils import (
     StarDate,
     asyncGZIP,
+    download_url_prep,
     handle_client_connection_error,
     scrap_url_default,
 )
@@ -10,9 +15,11 @@ from starstream._base import Img
 from bs4 import BeautifulSoup
 import aiofiles
 import os
-
+from datetime import datetime
 VALID_INSTRUMENTS = ["fe094", "fe131", "fe171", "fe195", "fe284", "he304"]
 
+def to_doy_year(date: str) -> str:
+    return date[:4] + datetime.strptime(date, '%Y%m%d').strftime('%j')
 
 class GOES16(Img):
     def __init__(
@@ -26,7 +33,7 @@ class GOES16(Img):
         super().__init__(
             root=os.path.join(root, self.instrument),
             batch_size=batch_size,
-            filepath=lambda name: os.path.join(self.root, name),
+            filepath=lambda name: os.path.join(root, self.instrument, name),
         )
         assert 0 <= granularity <= 1, "Not valid granularity, must be < |1|"
         assert (
@@ -37,10 +44,13 @@ class GOES16(Img):
         )
         self.granularity: float = granularity
 
-    def _find_local(self, date: str) -> Tuple[bool, List[str]]:
-        files: List[str] = os.listdir(self.root)
-        filepaths: List[str] = list(filter(lambda y: date in y, files))
-        return bool(len(filepaths)), filepaths
+    def _find_local(self, date: StarDate) -> Tuple[bool, Union[List[str], None]]:
+        try:
+            files: List[str] = os.listdir(self.root)
+            filepaths: List[str] = list(map(self.filepath, filter(lambda y: to_doy_year(date.str()) in y, files)))
+            return bool(len(filepaths)), filepaths
+        except FileNotFoundError:
+            return False, None
 
     def _interval_setup(self, scrap_date: ScrapDate) -> None:
         super()._interval_setup(scrap_date)
@@ -48,10 +58,20 @@ class GOES16(Img):
 
     @handle_client_connection_error(max_retries=3, increment="exp", default_cooldown=5)
     async def _scrap_(self, idx: int) -> None:
-        date: StarDate = self.dates[idx]
-        names: List[str] = await scrap_url_default(self, idx, self.manipulate_html)
-        self.urls.extend(list(map(lambda y: self.url(y, date.str()), names)))
-        self.paths.extend(list(map(lambda y: self.filepath(y), names)))
+        try:
+            date: StarDate = self.dates[idx]
+            names: List[str] = await scrap_url_default(self, idx, self.manipulate_html)
+            self.urls.extend(list(map(lambda y: self.url(y, date.str()), names)))
+            self.paths.extend(list(map(lambda y: self.filepath(y)[:-8] + '.fits', names)))
+        except IndexError:
+            return
+
+    async def _download_(self, idx: int) -> None:
+        await download_url_prep(self, idx, asyncGZIP, self._to_fits, idx)
+
+    async def _to_fits(self, gzip_file, idx: int) -> None:
+        async with aiofiles.open(self.paths[idx], 'wb') as file:
+            await file.write(gzip_file.read())
 
     async def manipulate_html(self, html) -> List[Union[str, None]]:
         soup = BeautifulSoup(html, "html.parser")
@@ -73,12 +93,4 @@ class GOES16(Img):
         return names
 
     async def _prep_(self, idx: int) -> None:
-        path: str = self.paths[idx]
-        await asyncGZIP(path, self._to_fits, path)
-
-    async def _to_fits(self, gzip_file, path: str) -> None:
-        fits_file = gzip_file.read()
-        gzip_file.close()
-        os.remove(path)
-        async with aiofiles.open(path[:-3], "xb") as file:
-            await file.write(fits_file)
+        _ = idx

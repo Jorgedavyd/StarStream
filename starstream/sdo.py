@@ -4,6 +4,7 @@ from starstream._base import CSV
 from starstream.downloader import DataDownloading
 from starstream._utils import (
     StarDate,
+    asyncFITS,
     asyncGZFITS,
     datetime,
     StarInterval,
@@ -39,6 +40,10 @@ def date_to_day_of_year(date_string):
     day_of_year_string = f"{day_of_year:03d}"
     return date_string[:4] + day_of_year_string
 
+def url(date: str) -> str:
+    yyyydoy: str = date_to_day_of_year(date)
+    doy: str = yyyydoy[-3:]
+    return f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level2b/{date[:4]}/{doy}/EVL_L2B_{yyyydoy}_008_01.fit.gz"
 
 class Base(Img):
     def __init__(self, download_path: str, batch_size: int) -> None:
@@ -298,22 +303,13 @@ class SDO:
         def __init__(
             self,
             root: str = "./data/SDO/EVE",
-            batch_size: int = 10,
+            batch_size: int = 1,
         ) -> None:
             super().__init__(
                 root=root,
                 batch_size=batch_size,
             )
-            self.url: Callable[[str], str] = (
-                lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_008.fit.gz"
-            )
-
-            self.gz_path: Callable[[str], str] = lambda date: osp.join(
-                self.root, f"{date}.fits.gz"
-            )
-            self.fits_path: Callable[[str], str] = lambda date: osp.join(
-                self.root, f"{date}.fits"
-            )
+            self.url: Callable[[str], str] = lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level3/{date[:4]}/EVE_L3_{date_to_day_of_year(date)}_008_01.fit"
 
         def _interval_setup(self, scrap_date: ScrapDate) -> None:
             super()._interval_setup(scrap_date)
@@ -323,25 +319,23 @@ class SDO:
         async def _scrap_(self, idx: int) -> None:
             _ = idx
 
-        async def prep(self, content: bytes, date: str) -> None:
-            await asyncGZFITS(BytesIO(content), self.preprocessing, date)
-
         async def _download_(self, idx: int) -> None:
-            try:
-                await download_url_prep(self, idx, self.prep, self.dates[idx].str())
-            except IndexError:
-                return
+            await download_url_prep(self, idx, asyncFITS, self.preprocessing, idx)
 
         async def _prep_(self, idx: int) -> None:
             _ = idx
 
-        def preprocessing(self, hdul, date: str) -> None:
-            data = hdul[1].data
-            data = np.stack([item[:, 1:].astype(np.float32) for item in data], axis=-1)
-            df: pl.DataFrame = pl.from_numpy(data)
+        def preprocessing(self, hdul, idx: int) -> None:
+            date: str = self.dates[idx].str()
+            data = hdul[8].data
+            columns: List[str] = ['MEGSB_LINE_IRRADIANCE', 'MEGSB_LINE_PRECISION', 'MEGSB_LINE_ACCURACY', 'MEGSB_LINE_STDEV']
+            if data is not None:
+                data = data[columns].astype(np.float32)
+            df: pl.DataFrame = pl.from_numpy(data, schema = columns)
+
             df = df.with_columns(
                 [
-                    pl.struct(["YEAR", "DOY", "SOD"])
+                    pl.struct(["YEAR", "DOY", ""])
                     .apply(
                         lambda row: pl.datetime(year=int(row["YEAR"]), month=1, day=1)
                         + pl.duration(
@@ -354,6 +348,6 @@ class SDO:
                 ]
             )
 
-            df = df.select(["date", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
+            df = df.select(["date"])
             df = df.set_sorted("date")
             df.write_csv(self.filepath(date))

@@ -84,10 +84,8 @@ async def asyncFITS(
 
 
 async def asyncGZFITS(obj: Union[str, BytesIO], processing: Callable, *args) -> None:
-    gz_obj = await asyncGZIP(obj)
-    fits_file = BytesIO(gz_obj.read())
-    return await asyncFITS(fits_file, processing, *args)
-
+    gz_obj = await asyncGZIP(obj, lambda gzip_file: gzip_file.read())
+    return await asyncFITS(BytesIO(gz_obj), processing, *args)
 
 async def asyncTAR(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
     return await asyncGeneral(obj, processing, syncTAR, *args)
@@ -262,21 +260,21 @@ def handle_client_connection_error(
 
 def not_valid_query(self, url: str) -> None:
     print(f"{self.__class__.__name__}: Data not available for queried url {url}")
-    return
 
 
 async def check_response_bytes(self, response, url: str) -> Any:
     if response is not None:
         content = await response.read()
-        if response.status != 200 or content.startswith(b"<html>"):
+        if response.status != 200 or content.startswith(b"<html>") or b'404 Not Found' in content:
             not_valid_query(self, url)
+            return
         return content
 
 
 async def check_response_text(self, response, url: str) -> Any:
     if response is not None:
         content = await response.text()
-        if response.status != 200:
+        if response.status != 200 or '404 Not Found' in content:
             not_valid_query(self, url)
         return content
 
@@ -303,7 +301,7 @@ async def download_url_prep(
         async with self.session.get(url, ssl=False) as response:
             content = await check_response_bytes(self, response, url)
             if content is not None:
-                return await coroutine_handler(method, content, *args)
+                return await coroutine_handler(method, BytesIO(content), *args)
     except IndexError:
         return
 

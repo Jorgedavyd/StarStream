@@ -338,7 +338,6 @@ class CDAWeb(CSV):
 
         with pycdf.CDF(path) as cdf_file:
             self.processing(cdf_file, date)
-
         os.remove(path)
 
 
@@ -370,7 +369,9 @@ class Img(Satellite):
         for date in StarInterval(
             create_scrap_date(scrap_date), self.date_sampling, self.format
         ):
-            out.extend(self._find_local(date)[-1])
+            filepaths = self._find_local(date)[-1]
+            if filepaths is not None:
+                out.extend(filepaths)
         return out
 
     def process_image(self, content: bytes) -> NDArray:
@@ -420,8 +421,11 @@ class Img(Satellite):
             case _:
                 raise ValueError("Not valid path to an image")
 
+        out_list: List[NDArray] = []
+        for i in range(0, len(paths), 256):
+            out_list.extend(await asyncio.gather(*[method(path) for path in paths[i: i+256]]))
         return np.stack(
-            await asyncio.gather(*[method(path) for path in paths]),
+            out_list,
             axis=0,
         )
 

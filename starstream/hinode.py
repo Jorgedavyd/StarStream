@@ -51,7 +51,6 @@ class Hinode:
             try:
                 date: str = self.dates[idx].str()
                 await scrap_url_default(self, idx, self.scrap, *date.split("-"))
-                await super()._scrap_(idx)
             except IndexError:
                 return
 
