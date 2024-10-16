@@ -330,8 +330,23 @@ class CDAWeb(CSV):
 
 @dataclass
 class Img(Satellite):
-    def _find_local(self, date: str) -> Tuple[bool, List[str]]:
-        return find_files_glob(self, date)
+    def _find_local(self, date: StarDate) -> Tuple[bool, List[str]]:
+        return find_files_glob(self, date.str())
+
+    def _interval_setup(self, scrap_date: ScrapDate) -> None:
+        new_scrap_date = StarInterval(
+            create_scrap_date(scrap_date), self.date_sampling, self.format
+        )
+
+        for date in tqdm(
+            new_scrap_date,
+            desc=f"{self.__class__.__name__}: Looking for missing dates...",
+        ):
+            if not self._find_local(date)[0]:
+                self.dates.append(date)
+
+        if self.dates:
+            os.makedirs(self.root, exist_ok=True)
 
     def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
         """
@@ -341,7 +356,7 @@ class Img(Satellite):
         for date in StarInterval(
             create_scrap_date(scrap_date), self.date_sampling, self.format
         ):
-            out.extend(self._find_local(date.str())[-1])
+            out.extend(self._find_local(date)[-1])
         return out
 
     def process_image(self, content: bytes) -> NDArray:

@@ -22,7 +22,7 @@ class STEREO_A:
                 super().__init__(
                     root = osp.join(root, wavelength),
                     batch_size = batch_size,
-
+                    filepath = lambda name: osp.join(root, wavelength, f"{name.split('_')[-2][:3]}", name)
                 )
                 self.wavelength: str = wavelength
                 self.url: Callable[[str, str], str] = (
@@ -31,10 +31,7 @@ class STEREO_A:
                 self.scrap_url: Callable[[str], str] = (
                     lambda date: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{self.wavelength}_A"
                 )
-                self.euvi_png_path: Callable[[str], str] = lambda name: osp.join(
-                    self.root, f"{name.split('_')[-2][:3]}", name
-                )
-                self.root_path_png_scrap: Callable[[str], str] = (
+                self.scrap_path: Callable[[str], str] = (
                     lambda date: osp.join(
                         self.root, self.wavelength, f"{date}*"
                     )
@@ -58,9 +55,8 @@ class STEREO_A:
                     for name in soup.find_all(
                         "a", href=lambda key: key.endswith("R.png")
                     )
-                    if name is not None
                 ]
-                self.paths.extend([self.euvi_png_path(name) for name in names if name is not None])
+                self.paths.extend([self.filepath(name) for name in names if name is not None])
                 self.urls.extend([self.url(date, name) for name in names if name is not None])
 
             async def _download_(self, idx: int) -> None:
