@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 import polars as pl
 import aiofiles
+from itertools import chain
 
 __all__ = ["Dst"]
 
@@ -57,20 +58,19 @@ class Dst(CSV):
 
     async def _on_download_prep(self, data, idx: int) -> None:
         date: StarDate = self.dates[idx]
-        data = data.split("\n")[:-2]
-        out_list: List[str] = []
+        data = data.decode("utf-8").split("\n")
+        data = list(map(lambda x: x.replace("-", " -").replace("+", " +"), data))
+        data = list(map(lambda x: x.split(), data))
 
-        for line in data:
-            out_list.extend(line.replace("-", " -").replace("+", " +").split()[-24:])
-
-        out_list.insert(0, "dst_index")
+        value: List = list(map(float, chain.from_iterable([sample[3:-1] for sample in data])))
+        value.insert(0, "dst_index")
+        value = '\n'.join(list(map(lambda x: str(x) + ',', value)))
 
         async with aiofiles.open(self.filepath(date.str()), "w") as f:
-            for line in out_list:
-                await f.write(line + ",\n")
+            await f.write(value)
 
-    def _get_df_unit(self, date: StarDate) -> pl.DataFrame:
-        df = pl.read_csv(self.filepath(date.str())).get_column("dst_index")
+    def _get_df_unit(self, date: str) -> pl.DataFrame:
+        df = pl.read_csv(self.filepath(date)).get_column("dst_index")
         start_date: datetime = datetime(int(date[:4]), int(date[4:6]), 1)
         end_date: datetime = start_date + relativedelta(months=1) - timedelta(hours=1)
         full_range = pl.DataFrame(

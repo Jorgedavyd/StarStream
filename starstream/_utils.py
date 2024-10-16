@@ -85,13 +85,12 @@ async def asyncFITS(
 
 async def asyncGZFITS(
     obj: Union[str, BytesIO],
-    gzip_proc: Callable,
-    gzip_args: Sequence[Any],
-    fits_proc: Callable,
-    fits_args: Sequence[Any],
+    processing: Callable,
+    *args
 ) -> None:
-    gz_obj = await asyncGZIP(obj, gzip_proc, *gzip_args)
-    return await asyncFITS(gz_obj, fits_proc, *fits_args)
+    gz_obj = await asyncGZIP(obj)
+    fits_file = BytesIO(gz_obj.read())
+    return await asyncFITS(fits_file, processing, *args)
 
 
 async def asyncTAR(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:

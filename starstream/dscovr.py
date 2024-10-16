@@ -33,7 +33,6 @@ class DSCOVR:
                 self.level == "l2" or self.level == "l1"
             ), "Not valid data product level"
             assert self.achronym is not None, "Achronym not passed"
-            self.filepath = lambda date: osp.join(self.root, f"{date}.csv")
 
         async def _get_urls(self) -> None:
             async with aiofiles.open(
@@ -97,7 +96,7 @@ class DSCOVR:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
                 await page.goto(url)
-                await page.wait_for_timeout(10000)
+                await page.wait_for_timeout(20000)
                 html = await page.content()
                 await browser.close()
             soup = BeautifulSoup(html, "html.parser")

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from dateutil.relativedelta import relativedelta
+from spacepy import pycdf
 from starstream._utils import (
     async_batch,
     asyncCDF,
@@ -136,7 +137,7 @@ class CSV(Satellite):
         self,
         root: str = "./data",
         batch_size: int = 10,
-        filepath: Callable = lambda date: osp.join("./data", f"{date}.csv"),
+        filepath: Callable = None,
         date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
         format: str = "%Y%m%d",
     ) -> None:
@@ -147,6 +148,8 @@ class CSV(Satellite):
             date_sampling,
             format,
         )
+        if self.filepath is None:
+            self.filepath: Callable[[str], str] = lambda date: osp.join(self.root, f"{date}.csv")
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         return pl.read_csv(self.filepath(date), try_parse_dates=True)
@@ -199,33 +202,51 @@ class CSV(Satellite):
 
     def _process_polars(
         self,
-        scrap_date: ScrapDate,
+        scrap_date: Union[ScrapDate, List[tuple]],
         resolution: Optional[timedelta] = None,
+        agg_func: Callable = pl.mean
     ) -> List[pl.DataFrame]:
-        scrap_date = create_scrap_date(scrap_date)
-        out_list: List[pl.DataFrame] = []
-        for tuple_date in scrap_date:
-            new_scrap_date: StarInterval = StarInterval(
-                [tuple_date], self.date_sampling, self.format
-            )
-            df: pl.DataFrame = self._get_df(new_scrap_date)
-            if resolution is not None:
-                df = (
-                    df.filter(
-                        (pl.col("date") > new_scrap_date.interval[0].polars())
-                        & (pl.col("date") < new_scrap_date.interval[-1].polars())
-                    )
-                    .group_by_dynamic("date", every=timedelta_to_freq(resolution))
-                    .agg(pl.col("*"))
-                    .mean()
-                )
-            else:
+        """
+        Process data using Polars based on given scrap dates and optional resolution.
+
+        Args:
+        scrap_date (Union[ScrapDate, List[tuple]]): Dates to process.
+        resolution (Optional[timedelta]): Time resolution for aggregation. If None, no aggregation is performed.
+        agg_func (Callable): Aggregation function to use. Defaults to pl.mean.
+
+        Returns:
+        List[pl.DataFrame]: List of processed Polars DataFrames.
+        """
+        try:
+            scrap_date = create_scrap_date(scrap_date)
+            out_list: List[pl.DataFrame] = []
+
+            for tuple_date in scrap_date:
+                new_scrap_date = StarInterval([tuple_date], self.date_sampling, self.format)
+                df: pl.DataFrame = self._get_df(new_scrap_date)
+
+                # Filter the dataframe to include only dates within the interval
                 df = df.filter(
                     (pl.col("date") > new_scrap_date.interval[0].polars())
                     & (pl.col("date") < new_scrap_date.interval[-1].polars())
                 )
-            out_list.append(df)
-        return out_list
+
+                if resolution is not None:
+                    resolution_seconds = int(resolution.total_seconds())
+                    df = df.with_columns([
+                        (pl.col("date").cast(pl.Int64) / resolution_seconds).floor().alias("group")
+                    ])
+                    df = df.group_by("group").agg([
+                        pl.col("date").first().alias("date"),
+                        pl.all().exclude(["date", "group"]).apply(agg_func)
+                    ]).sort("date")
+                    df = df.drop("group")
+                out_list.append(df)
+            return out_list
+
+        except Exception as e:
+            print(f"An error occurred during processing: {str(e)}")
+            return []
 
 
 class CDAWeb(CSV):
@@ -263,49 +284,48 @@ class CDAWeb(CSV):
     async def _download_(self, idx: int) -> None:
         return await download_url_write(self, idx)
 
+    def processing(self, cdf_file, date: str) -> None:
+        epoch = cdf_file["Epoch"][:]
+        if epoch is None:
+            raise ValueError("Epoch is None")
+        epoch = epoch.astype(np.datetime64).reshape(-1)
+
+        def data_func(var: str) -> NDArray:
+            file = cdf_file[var][:]
+            if file is not None:
+                return file.astype(np.float32)
+            else:
+                raise ValueError("Data is None")
+
+        data_columns: List[NDArray] = []
+        for var in self.phy_obs:
+            data = cdf_file[var][:]
+            shape = data.shape
+            if len(shape) == 1:
+                data_columns.append(data_func(var).reshape(-1, 1))
+            elif len(shape) == 2:
+                data_columns.append(data_func(var))
+            else:
+                raise ValueError("Found singularity")
+        data_columns = np.concatenate(data_columns, -1).astype(np.float32).T
+        time = pl.from_numpy(epoch, schema=["date"], orient="col").cast(
+            {"date": pl.Datetime}
+        )
+        output = pl.from_numpy(data_columns, schema=self.variables, orient="col")
+        output = output.with_columns(time)
+        output.write_csv(self.filepath(date))
+
     async def _prep_(self, idx: int):
         try:
             date: str = self.dates[idx].str()
-        except IndexError:
-            return
-
-        def processing(cdf_file) -> None:
-            epoch = cdf_file["Epoch"][:]
-            if epoch is None:
-                raise ValueError("Epoch is None")
-            epoch = epoch.astype(np.datetime64).reshape(-1)
-
-            def data_func(var: str) -> NDArray:
-                file = cdf_file[var][:]
-                if file is not None:
-                    return file.astype(np.float32)
-                else:
-                    raise ValueError("Data is None")
-
-            data_columns: List[NDArray] = []
-            for var in self.phy_obs:
-                data = cdf_file[var][:]
-                shape = data.shape
-                if len(shape) == 1:
-                    data_columns.append(data_func(var).reshape(-1, 1))
-                elif len(shape) == 2:
-                    data_columns.append(data_func(var))
-                else:
-                    raise ValueError("Found singularity")
-            data_columns = np.concatenate(data_columns, -1).astype(np.float32).T
-            time = pl.from_numpy(epoch, schema=["date"], orient="col").cast(
-                {"date": pl.Datetime}
-            )
-            output = pl.from_numpy(data_columns, schema=self.variables, orient="col")
-            output = output.with_columns(time)
-            output.write_csv(self.filepath(date))
-            os.remove(self.cdf_path(date))
-
-        try:
             path: str = self.paths[idx]
-            await asyncCDF(path, processing)
         except IndexError:
             return
+
+        with pycdf.CDF(path) as cdf_file:
+            self.processing(cdf_file, date)
+
+        os.remove(path)
 
 
 @dataclass

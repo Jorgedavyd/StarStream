@@ -1,13 +1,16 @@
+from io import BytesIO
 from astropy.io import fits
 from starstream._base import CSV
 from starstream.downloader import DataDownloading
 from starstream._utils import (
     StarDate,
+    asyncGZFITS,
     datetime,
     StarInterval,
-    timedelta_to_freq,
+    download_url_prep,
     handle_client_connection_error,
 )
+from starstream.typing import ScrapDate
 from ._base import Img
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
@@ -294,40 +297,50 @@ class SDO:
     class EVE(CSV):
         def __init__(
             self,
-            download_path: str = "./data/SDO/EVE",
+            root: str = "./data/SDO/EVE",
             batch_size: int = 10,
-            store_resolution: Optional[timedelta] = None,
         ) -> None:
             super().__init__(
-                root_path=download_path,
+                root=root,
                 batch_size=batch_size,
-                csv_path=lambda date: osp.join(download_path, f"{date}.csv"),
             )
-            if store_resolution is not None:
-                self.resolution = timedelta_to_freq(store_resolution)
-            self.batch_size: int = batch_size
             self.url: Callable[[str], str] = (
                 lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level1/esp/{date[:4]}/esp_L1_{date_to_day_of_year(date)}_008.fit.gz"
             )
 
             self.gz_path: Callable[[str], str] = lambda date: osp.join(
-                download_path, f"{date}.fits.gz"
+                self.root, f"{date}.fits.gz"
             )
             self.fits_path: Callable[[str], str] = lambda date: osp.join(
-                download_path, f"{date}.fits"
+                self.root, f"{date}.fits"
             )
 
-        def to_csv(self, date: str) -> None:
-            path: str = self.fits_path(date)
-            with fits.open(path) as hdul:
-                data = hdul[1].data
-                print(data)
-                data = np.stack(
-                    [item[:, 1:].astype(np.float32) for item in data], axis=-1
-                )
-                print(data)
-                df: pl.DataFrame = pl.from_numpy(data)
+        def _interval_setup(self, scrap_date: ScrapDate) -> None:
+            super()._interval_setup(scrap_date)
+            self.paths = [self.filepath(date.str()) for date in self.dates]
+            self.urls = [self.url(date.str()) for date in self.dates]
 
+        async def _scrap_(self, idx: int) -> None:
+            _ = idx
+
+        async def prep(self, content: bytes, date: str) -> None:
+            await asyncGZFITS(BytesIO(content), self.preprocessing, date)
+
+        async def _download_(self, idx: int) -> None:
+            try:
+                await download_url_prep(self, idx, self.prep, self.dates[idx].str())
+            except IndexError:
+                return
+
+        async def _prep_(self, idx: int) -> None:
+            _ = idx
+
+        def preprocessing(self, hdul, date: str) -> None:
+            data = hdul[1].data
+            data = np.stack(
+                [item[:, 1:].astype(np.float32) for item in data], axis=-1
+            )
+            df: pl.DataFrame = pl.from_numpy(data)
             df = df.with_columns(
                 [
                     pl.struct(["YEAR", "DOY", "SOD"])
@@ -345,53 +358,4 @@ class SDO:
 
             df = df.select(["date", "CH_18", "CH_26", "CH_30", "Q_1", "Q_2", "Q_3"])
             df = df.set_sorted("date")
-
-            if resolution := getattr(self, "resolution", False):
-                df = df.groupby_dynamic(
-                    "date", every=timedelta_to_freq(resolution)
-                ).agg(
-                    [
-                        pl.col("CH_18").mean(),
-                        pl.col("CH_26").mean(),
-                        pl.col("CH_30").mean(),
-                        pl.col("Q_1").mean(),
-                        pl.col("Q_2").mean(),
-                        pl.col("Q_3").mean(),
-                    ]
-                )
-
-            df.write_csv(self.csv_path(date))
-            os.remove(self.fits_path(date))
-
-        async def to_fits(self, date: str) -> None:
-            path: str = self.gz_path(date)
-            gzip_file = gzip.open(path)
-            fits_file = gzip_file.read()
-            gzip_file.close()
-            os.remove(path)
-            async with aiofiles.open(path[:-3], "xb") as file:
-                await file.write(fits_file)
-
-        async def preprocess(self, date: StarDate) -> None:
-            await self.to_fits(date.str())
-            self.to_csv(date.str())
-
-        def _get_preprocessing_tasks(self, session) -> List[Coroutine]:
-            _ = session
-            return [self.preprocess(date) for date in self.new_scrap_date_list]
-
-        async def _download_url(self, session, date: StarDate) -> None:
-            day = date.str()
-            url = self.url(day)
-            async with session.get(url, ssl=False) as response:
-                data = await response.read()
-                async with aiofiles.open(self.gz_path(day), "wb") as file:
-                    await file.write(data)
-
-
-if __name__ == "__main__":
-    obj = SDO.EVE(batch_size=1)
-    scrap_date = (datetime(2020, 10, 10), datetime(2020, 10, 30))
-    DataDownloading(obj, scrap_date)
-    obj.get_numpy(scrap_date)
-    obj.get_torch(scrap_date)
+            df.write_csv(self.filepath(date))
