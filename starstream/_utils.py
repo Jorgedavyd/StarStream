@@ -182,7 +182,7 @@ def mega_interval(*args) -> List[StarDate]:
 ## Async handling
 
 
-async def coroutine_handler(function: Callable[..., Any], *args: Any) -> Any:
+async def coroutine_handler(function: Union[Callable, Coroutine], *args: Any) -> Any:
     if iscoroutinefunction(function):
         return await function(*args)
     else:
@@ -299,7 +299,7 @@ async def download_url_write(self, idx: int) -> None:
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def download_url_prep(
-    self, idx: int, method: Callable[[bytes], Coroutine], *args
+    self, idx: int, method: Union[Callable, Coroutine], *args
 ) -> Any:
     try:
         url: str = self.urls[idx]
@@ -313,7 +313,7 @@ async def download_url_prep(
 
 @handle_client_connection_error(default_cooldown=5, increment="exp", max_retries=5)
 async def scrap_url_default(
-    self, idx: int, method: Callable[[bytes], Coroutine], *args: Any
+    self, idx: int, method: Union[Callable, Coroutine], *args: Any
 ) -> Any:
     try:
         url: str = self.scrap_urls[idx]

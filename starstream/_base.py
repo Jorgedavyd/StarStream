@@ -397,7 +397,7 @@ class Img(Satellite):
 
     async def async_numpy(
         self, scrap_date: List[Tuple[datetime, datetime]]
-    ) -> np.ndarray:
+    ) -> NDArray:
         paths: List[str] = self._path_prep(scrap_date)
         sample_path: str = paths[0]
 
@@ -418,6 +418,7 @@ class Img(Satellite):
             out_list.extend(
                 await asyncio.gather(*[method(path) for path in paths[i : i + 256]])
             )
+
         return np.stack(
             out_list,
             axis=0,

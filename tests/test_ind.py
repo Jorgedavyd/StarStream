@@ -78,7 +78,7 @@ def test_aia_lr() -> None:
 
 def test_aia_hr() -> None:
     def object():
-        return SDO.AIA_HR(resolution=timedelta(minutes=5), wavelength="94")
+        return SDO.AIA_HR(resolution=timedelta(minutes=5), wavelength=94)
 
     runtime(object)
 

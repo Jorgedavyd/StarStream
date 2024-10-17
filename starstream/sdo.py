@@ -224,10 +224,8 @@ class SDO:
                 "MEGSB_LINE_ACCURACY",
                 "MEGSB_LINE_STDEV",
             ]
+            data = np.stack([data[column] for column in columns], axis = -1)
             if data is not None:
-                data = data[columns].astype(np.float32) ## aca esta mal de alguna manera, porque no pasa de aca el codigo
-                ## add dates (86000 sec separation)
-            df: pl.DataFrame = pl.from_numpy(data, schema=columns)
-            df = df.select(["date"])
-            df = df.set_sorted("date")
-            df.write_csv(self.filepath(date))
+                data = data.astype(np.float32).squeeze(0)
+                df: pl.DataFrame = pl.from_numpy(data, schema=columns)
+                df.write_csv(self.filepath(date))

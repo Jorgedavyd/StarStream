@@ -73,5 +73,5 @@ class STEREO_A:
 
 if __name__ == "__main__":
     DataDownloading(
-        STEREO_A.SECCHI.EUVI("171"), [(datetime(2014, 10, 1), datetime(2014, 10, 30))]
+        STEREO_A.SECCHI.EUVI(171), [(datetime(2014, 10, 1), datetime(2014, 10, 30))]
     )
