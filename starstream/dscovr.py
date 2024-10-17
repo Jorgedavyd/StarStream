@@ -16,7 +16,7 @@ import os.path as osp
 from bs4 import BeautifulSoup
 import aiofiles
 from playwright.async_api import async_playwright
-from dateutil import relativedelta
+from dateutil.relativedelta import relativedelta
 
 __all__ = ["DSCOVR"]
 
