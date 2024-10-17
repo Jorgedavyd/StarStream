@@ -18,9 +18,9 @@ __all__ = ["SOHO"]
 class SOHO:
     class CELIAS_SEM(CDAWeb):
         def __init__(
-            self, download_path: str = "./data/SOHO/CELIAS_SEM", batch_size: int = 10
+            self, root: str = "./data/SOHO/CELIAS_SEM", batch_size: int = 10
         ) -> None:
-            super().__init__(download_path, batch_size)
+            super().__init__(root, batch_size)
             self.phy_obs: List[str] = [
                 "CH1",
                 "CH2",
@@ -35,9 +35,9 @@ class SOHO:
 
     class CELIAS_PM(CDAWeb):
         def __init__(
-            self, download_path: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10
+            self, root: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10
         ) -> None:
-            super().__init__(download_path, batch_size)
+            super().__init__(root, batch_size)
             self.phy_obs: List[str] = [
                 "N_p",
                 "V_p",
@@ -52,9 +52,9 @@ class SOHO:
 
     class ERNE(CDAWeb):
         def __init__(
-            self, download_path: str = "./data/SOHO/ERNE/", batch_size: int = 10
+            self, root: str = "./data/SOHO/ERNE/", batch_size: int = 10
         ) -> None:
-            super().__init__(download_path, batch_size)
+            super().__init__(root, batch_size)
             self.phy_obs: List[str] = [
                 "PH",
                 "PHC",
@@ -83,14 +83,14 @@ class SOHO:
         date_sampling: Union[timedelta, relativedelta] = relativedelta(years=1)
         format: str = "%Y"
 
-        def __init__(self, download_path: str = "./data/SOHO/COSTEP_EPHIN") -> None:
+        def __init__(self, root: str = "./data/SOHO/COSTEP_EPHIN") -> None:
             super().__init__()
             self.csv_path: Callable[[str], str] = lambda date: osp.join(
-                download_path, f"{date}.csv"
+                root, f"{date}.csv"
             )
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
             self.l3i_path: Callable[[str], str] = lambda date: osp.join(
-                download_path, f"{date}.l3i"
+                root, f"{date}.l3i"
             )
             self.url: str = (
                 "https://soho.nascom.nasa.gov/data/EntireMissionBundles/COSTEP_EPHIN_L3_l3i_5min-EntireMission-ByYear.tar.gz"
@@ -117,7 +117,6 @@ class SOHO:
             scrap_date: Union[
                 List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
             ],
-            session,
         ):
             if isinstance(scrap_date[0], datetime):
                 self._check_tasks([scrap_date])
@@ -127,7 +126,7 @@ class SOHO:
             if self.new_scrap_date_list is None:
                 print("Dataset downloaded")
             else:
-                await self.download_url(session)
+                await self.download_url(self.session)
 
         def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
             self.downloaded = len(glob.glob(self.root + "/*")) == 30

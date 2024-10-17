@@ -137,21 +137,13 @@ class CSV(Satellite):
         self,
         root: str = "./data",
         batch_size: int = 10,
-        filepath: Callable = None,
+        filepath: Optional[Callable] = None,
         date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
         format: str = "%Y%m%d",
     ) -> None:
-        super().__init__(
-            root,
-            batch_size,
-            filepath,
-            date_sampling,
-            format,
-        )
-        if self.filepath is None:
-            self.filepath: Callable[[str], str] = lambda date: osp.join(
-                self.root, f"{date}.csv"
-            )
+        if filepath is None:
+            filepath = lambda date: osp.join(self.root, f"{date}.csv")
+        super().__init__(root, batch_size, filepath, date_sampling, format)
 
     def _get_df_unit(self, date: str) -> pl.DataFrame:
         return pl.read_csv(self.filepath(date), try_parse_dates=True)

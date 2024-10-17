@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from tqdm import tqdm
 from starstream._base import CSV
 from starstream._utils import (
@@ -9,30 +8,26 @@ from starstream._utils import (
 )
 from starstream.typing import ScrapDate
 from datetime import timedelta, datetime
-from io import BytesIO
 import xarray as xr
 import os
 import time
-from typing import Tuple, List
+from typing import Optional, Tuple, List, Union, Callable
 import os.path as osp
 from bs4 import BeautifulSoup
 import aiofiles
 from playwright.async_api import async_playwright
-
+from dateutil import relativedelta
 __all__ = ["DSCOVR"]
 
 
 class DSCOVR:
-    @dataclass
     class __Base(CSV):
-        level: str = "l1"
-        achronym: str = None
-
-        def __post_init__(self) -> None:
-            assert (
-                self.level == "l2" or self.level == "l1"
-            ), "Not valid data product level"
-            assert self.achronym is not None, "Achronym not passed"
+        def __init__(self, root: str = "./data", batch_size: int = 10, filepath: Optional[Callable] = None, date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = "%Y%m%d", level: str = 'l2', achronym: Optional[str] = None) -> None:
+            super().__init__(root, batch_size, filepath, date_sampling, format)
+            assert (level == "l2" or level == "l1"), "Not valid data product level"
+            assert achronym is not None, "Achronym not passed"
+            self.level = level
+            self.achronym = achronym
 
         async def _get_urls(self) -> None:
             async with aiofiles.open(
@@ -133,7 +128,7 @@ class DSCOVR:
         async def _download_(self, idx: int) -> None:
             async def anonymous(gzip_file):
                 await asyncGZIP(
-                    BytesIO(gzip_file), self._gz_processing, self.dates[idx].str()
+                    gzip_file, self._gz_processing, self.dates[idx].str()
                 )
 
             await download_url_prep(self, idx, anonymous)
@@ -144,12 +139,12 @@ class DSCOVR:
     class FaradayCup(__Base):
         def __init__(
             self,
-            download_path: str = "./data/DSCOVR",
+            root: str = "./data/DSCOVR",
             batch_size: int = 15,
             level: str = "l1",
         ) -> None:
             super().__init__(
-                root=osp.join(download_path, level, "faraday"),
+                root=osp.join(root, "faraday", level),
                 batch_size=batch_size,
                 level=level,
                 achronym="fc1" if level == "l1" else "f1m",
@@ -158,12 +153,12 @@ class DSCOVR:
     class Magnetometer(__Base):
         def __init__(
             self,
-            download_path: str = "./data/DSCOVR",
+            root: str = "./data/DSCOVR",
             batch_size: int = 10,
             level: str = "l2",
         ) -> None:
             super().__init__(
-                root=osp.join(download_path, level, "magnetometer"),
+                root=osp.join(root, "magnetometer", level),
                 batch_size=batch_size,
                 level=level,
                 achronym="mg1" if level == "l1" else "m1m",

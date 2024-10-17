@@ -1,31 +1,20 @@
-from io import BytesIO
-from astropy.io import fits
 from starstream._base import CSV
-from starstream.downloader import DataDownloading
 from starstream._utils import (
-    StarDate,
     asyncFITS,
-    asyncGZFITS,
     datetime,
-    StarInterval,
     download_url_prep,
-    handle_client_connection_error,
+    download_url_write,
+    scrap_url_default,
 )
 from starstream.typing import ScrapDate
 from ._base import Img
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from itertools import chain
-from tqdm import tqdm
-import aiofiles
 import asyncio
-import glob
-import os
-from typing import Callable, Coroutine, List, Optional, Tuple, Union
+from typing import Callable, List
 import os.path as osp
 import polars as pl
 import numpy as np
-import gzip
 
 """
 http://jsoc.stanford.edu/data/aia/synoptic/mostrecent/
@@ -46,61 +35,38 @@ def url(date: str) -> str:
     return f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level2b/{date[:4]}/{doy}/EVL_L2B_{yyyydoy}_008_01.fit.gz"
 
 class Base(Img):
-    def __init__(self, download_path: str, batch_size: int) -> None:
-        super().__init__(download_path, batch_size)
+    def __init__(
+            self,
+            wavelength: str,
+            root: str,
+            batch_size: int,
+            filepath: Callable,
+            url: Callable,
+    ) -> None:
+        super().__init__(
+            root = root,
+            batch_size = batch_size,
+            filepath=filepath,
+        )
+        self.url = url
+        self.wavelength = wavelength
 
-    async def fetch(
-        self,
-        scrap_date: Union[List[Tuple[datetime, datetime]], Tuple[datetime, datetime]],
-        session,
-    ):
-        if isinstance(scrap_date[0], datetime):
-            scrap_date = [scrap_date]
-        self.check_tasks(scrap_date)
-        await self.batched_download(session)
+    def find_all(self, soup) -> List[str]:
+        _ = soup
+        raise NotImplemented("find_all")
 
-    async def batched_download(self, client) -> None:
-        params = []
-        for i in tqdm(
-            range(0, len(self.new_scrap_date_list), self.batch_size),
-            desc="Getting file names...",
-        ):
-            params.extend(
-                [
-                    *chain.from_iterable(
-                        await asyncio.gather(
-                            *[
-                                self.scrap_names(date, client)
-                                for date in self.new_scrap_date_list[
-                                    i : i + self.batch_size
-                                ]
-                            ]
-                        )
-                    )
-                ]
-            )
+    async def _scrap_(self, idx: int):
+        await scrap_url_default(self, idx, self.manipulate_html, idx)
 
-        params = [i for i in params if i is not None]
-        for i in tqdm(range(0, len(params), self.batch_size), desc="Getting images..."):
-            await asyncio.gather(
-                *[
-                    self.download_from_name(name, client)
-                    for name in params[i : i + self.batch_size]
-                ]
-            )
+    async def _download_(self, idx: int) -> None:
+        await download_url_write(self, idx)
 
-    def _path_prep(self, scrap_date: List[Tuple[datetime, datetime]]) -> List[str]:
-        new_scrap_date: StarInterval = StarInterval(scrap_date)
-        return [
-            *chain.from_iterable(
-                [glob.glob(self.scrap_path(date.str())) for date in new_scrap_date]
-            )
-        ]
-
+    async def _prep_(self, idx: int) -> None:
+        _ = idx
 
 class SDO:
     class AIA_HR(Base):
-        wavelengths: List[str] = [
+        valid_wavelengths: List[str] = [
             "94",
             "131",
             "171",
@@ -117,29 +83,29 @@ class SDO:
 
         def __init__(
             self,
-            wavelength: Union[str, int],
-            download_path: str = "./data/SDO_HR/",
+            wavelength: int,
+            root: str = "./data/SDO_HR/",
             batch_size: int = 10,
             resolution: timedelta = timedelta(minutes=5),
         ) -> None:
+            f"{wavelength:04}"
             assert (
                 0 < batch_size <= 10
             ), "Not valid batch_size, should be between 0 and 10"
             assert (
-                str(wavelength) in self.wavelengths
-            ), f"Not valid wavelength: {self.wavelengths}"
-            assert (
                 resolution > self.min_step_size
             ), "Not valid step size, extremely high resolution"
-            self.resolution = resolution
-            self.wavelength = wavelength
-            self.url = (
+            super().__init__(
+                f"{wavelength:04}",
+                root,
+                batch_size,
+                lambda name: osp.join(root, f"{wavelength:04}", self.name(name)),
                 lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}"
             )
-            super().__init__(osp.join(download_path, str(wavelength)), batch_size)
-
+            self.resolution = resolution
+            self.scrap_url: Callable[[str], str] = lambda date: self.url(date, "")
             self.scrap_path: Callable[[str], str] = lambda date: osp.join(
-                self.root_path, f"{date}*.jp2"
+                self.root, f"{date}*.jp2"
             )
 
             self.name = (
@@ -149,67 +115,25 @@ class SDO:
                 + ".jp2"
             )
 
-            self.path: Callable[[str], str] = lambda name: osp.join(
-                self.root_path, self.name(name)
-            )
 
-        def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-            new_scrap_date: StarInterval = StarInterval(scrap_date)
-            for date in new_scrap_date:
-                if len(glob.glob(self.scrap_path(date.str()))) < (
-                    (timedelta(days=1) / self.resolution) - 1
-                ):
-                    self.new_scrap_date_list.append(date)
-
-        async def get_names(self, html):
+        async def manipulate_html(self, html, idx: int):
+            date: str = self.dates[idx].str()
             loop = asyncio.get_event_loop()
             soup = await loop.run_in_executor(None, BeautifulSoup, html, "html.parser")
             scrap = await loop.run_in_executor(None, self.find_all, soup)
             names = [name["href"] for name in scrap]
-            return [
+            names = [
                 names[i]
                 for i in range(0, len(names), self.resolution // self.min_step_size)
             ]
-
-        @handle_client_connection_error(
-            increment="exp", default_cooldown=5, max_retries=3
-        )
-        async def scrap_names(self, date: StarDate, client):
-            day = date.str()
-            url = self.url(day, "")
-            async with client.get(url) as response:
-                if response.status != 200:
-                    print(
-                        f"{self.__class__.__name__}: Data not available for date: {day}, queried url: {url}"
-                    )
-                    self.new_scrap_date_list.remove(date)
-                else:
-                    data = await response.text()
-                    if "404 not found" in data:
-                        print(
-                            f"{self.__class__.__name__}: Data not available for date: {day}, queried url: {url}"
-                        )
-                        self.new_scrap_date_list.remove(date)
-                        return
-                    names = await self.get_names(data)
-                    return names
+            self.urls.extend([self.url(date, name) for name in names])
+            self.paths.extend([self.filepath(name) for name in names])
 
         def find_all(self, soup):
             return soup.find_all("a", href=lambda href: href.endswith(".jp2"))
 
-        @handle_client_connection_error(
-            increment="exp", default_cooldown=5, max_retries=3
-        )
-        async def download_from_name(self, name, client):
-            date = name.split("_")[0]
-            url = self.url(date, name)
-            async with client.get(url, ssl=False) as response, aiofiles.open(
-                self.path(name), "wb"
-            ) as f:
-                await f.write(await response.read())
-
     class AIA_LR(Base):
-        wavelengths: List[str] = [
+        valid_wavelengths: List[str] = [
             "0094",
             "0131",
             "0171",
@@ -225,79 +149,42 @@ class SDO:
         def __init__(
             self,
             wavelength: str,
-            download_path: str = "./data/AIA_LR",
+            root: str = "./data/AIA_LR",
             batch_size: int = 256,
         ) -> None:
             assert (
-                wavelength in self.wavelengths
-            ), f"Not valid wavelength: {self.wavelengths}"
+                wavelength in self.valid_wavelengths
+            ), f"Not valid wavelength: {self.valid_wavelengths}"
             super().__init__(
-                download_path=osp.join(download_path, wavelength), batch_size=batch_size
-            )
-            self.wavelength: str = wavelength
-            self.url: Callable[[str, str], str] = (
-                lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
+                wavelength,
+                root=osp.join(root, wavelength),
+                batch_size=batch_size,
+                filepath = lambda name: osp.join(root, wavelength, self.name(name)),
+                url = lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
             )
 
-            self.scrap_path: Callable[[str], str] = lambda date: osp.join(
-                self.root_path, f"{date}*.jpg"
-            )
-            self.jpg_path: Callable[[str], str] = lambda name: osp.join(
-                self.root_path, name
-            )
             self.name: Callable[[str], str] = (
                 lambda webname: "-".join(webname.split("_")[:2]) + ".jpg"
             )
 
-        def check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
-            print(
-                f"{self.__class__.__name__}: Looking for the links of missing dates..."
+            self.scrap_path: Callable[[str], str] = lambda date: osp.join(
+                self.root, f"{date}*.jpg"
             )
-            new_scrap_date: StarInterval = StarInterval(scrap_date)
-            for date in new_scrap_date:
-                if len(glob.glob(self.scrap_path(date.str()))) == 0:
-                    self.new_scrap_date_list.append(date)
-
-        async def get_names(self, html) -> List[str]:
-            loop = asyncio.get_event_loop()
-            soup = await loop.run_in_executor(None, BeautifulSoup, html, "html.parser")
-            scrap = await loop.run_in_executor(None, self.find_all, soup)
-            return [name["href"] for name in scrap]
-
-        @handle_client_connection_error(
-            increment="exp", default_cooldown=5, max_retries=3
-        )
-        async def scrap_names(self, date: StarDate, client):
-            url = self.url(date.str(), "")
-            async with client.get(url) as response:
-                if response.status != 200:
-                    print(
-                        f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                    )
-                    self.new_scrap_date_list.remove(date)
-                else:
-                    data = await response.text()
-                    if "404 not found" in data:
-                        print(
-                            f"{self.__class__.__name__}: Data not available for date: {date}, queried url: {url}"
-                        )
-                        self.new_scrap_date_list.remove(date)
-                        return
-                    names = await self.get_names(data)
-                    return names
 
         def find_all(self, soup) -> List:
             return soup.find_all(
                 "a", href=lambda href: href.endswith(f"512_{self.wavelength}.jpg")
             )
 
-        async def download_from_name(self, name: str, client) -> None:
-            date = name.split("_")[0]
-            url = self.url(date, name)
-            async with client.get(url) as response, aiofiles.open(
-                self.jpg_path(self.name(name)), "wb"
-            ) as f:
-                await f.write(await response.read())
+        async def manipulate_html(self, html, idx: int) -> None:
+            date: str = self.dates[idx].str()
+            loop = asyncio.get_event_loop()
+            soup = await loop.run_in_executor(None, BeautifulSoup, html, "html.parser")
+            scrap = await loop.run_in_executor(None, self.find_all, soup)
+            names = [name["href"] for name in scrap]
+            self.urls.extend([self.url(date, name) for name in names])
+            self.paths.extend([self.filepath(name) for name in names])
+
 
     class EVE(CSV):
         def __init__(
