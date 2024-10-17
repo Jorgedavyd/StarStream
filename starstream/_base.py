@@ -33,6 +33,7 @@ from io import BytesIO
 import os.path as osp
 from scipy.ndimage import zoom
 
+
 @dataclass
 class Satellite:
     root: str = field(default="./data/")
@@ -394,7 +395,9 @@ class Img(Satellite):
         return array
 
     async def async_numpy(
-        self, scrap_date: List[Tuple[datetime, datetime]], resolution: Optional[int] = None
+        self,
+        scrap_date: List[Tuple[datetime, datetime]],
+        resolution: Optional[int] = None,
     ) -> NDArray:
         paths: List[str] = self._path_prep(scrap_date)
         sample_path: str = paths[0]
@@ -420,7 +423,9 @@ class Img(Satellite):
         shapes: List[Tuple[int, int]] = list(set(map(lambda x: x.shape, out_list)))
 
         if len(shapes) != 1 and resolution is not None:
-            out_list = list(map(lambda x: self.interpolate_and_normalize(x, resolution), out_list))
+            out_list = list(
+                map(lambda x: self.interpolate_and_normalize(x, resolution), out_list)
+            )
 
         return np.stack(out_list)
 
@@ -431,7 +436,6 @@ class Img(Satellite):
         zoom_w = target_size / size[1]
         resized = zoom(img, (zoom_h, zoom_w, 1))
         return resized
-
 
     async def async_torch(self, scrap_date: List[Tuple[datetime, datetime]]) -> Tensor:
         return torch.from_numpy(await self.async_numpy(scrap_date))

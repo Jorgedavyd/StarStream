@@ -10,6 +10,7 @@ from starstream import __version__
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
+
 def get_requirements():
     return [
         "spacepy",
@@ -29,16 +30,20 @@ def get_requirements():
         "viresclient",
     ]
 
+
 def install_playwright():
     try:
         subprocess.run(["playwright", "install"], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install Playwright browsers: {e}")
     except FileNotFoundError:
-        print("Warning: Playwright command not found. Try running 'playwright install' manually.")
+        print(
+            "Warning: Playwright command not found. Try running 'playwright install' manually."
+        )
+
 
 class PlaywrightInstallCommand(Command):
-    description = 'install Playwright browsers'
+    description = "install Playwright browsers"
     user_options = []
 
     def initialize_options(self):
@@ -50,20 +55,24 @@ class PlaywrightInstallCommand(Command):
     def run(self):
         install_playwright()
 
+
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
         install_playwright()
+
 
 class CustomDevelopCommand(develop):
     def run(self):
         develop.run(self)
         install_playwright()
 
+
 class CustomEggInfoCommand(egg_info):
     def run(self):
         egg_info.run(self)
         install_playwright()
+
 
 if __name__ == "__main__":
     setup(
@@ -90,10 +99,10 @@ if __name__ == "__main__":
             ],
         },
         cmdclass={
-            'install': CustomInstallCommand,
-            'develop': CustomDevelopCommand,
-            'egg_info': CustomEggInfoCommand,
-            'playwright': PlaywrightInstallCommand,
+            "install": CustomInstallCommand,
+            "develop": CustomDevelopCommand,
+            "egg_info": CustomEggInfoCommand,
+            "playwright": PlaywrightInstallCommand,
         },
         classifiers=[
             "Development Status :: 5 - Production/Stable",

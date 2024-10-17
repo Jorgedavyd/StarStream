@@ -227,7 +227,7 @@ class SDO:
                 "MEGSB_LINE_ACCURACY",
                 "MEGSB_LINE_STDEV",
             ]
-            data = np.stack([data[column] for column in columns], axis = -1)
+            data = np.stack([data[column] for column in columns], axis=-1)
             if data is not None:
                 data = data.astype(np.float32).squeeze(0)
                 df: pl.DataFrame = pl.from_numpy(data, schema=columns)
