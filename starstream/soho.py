@@ -1,8 +1,10 @@
 from collections.abc import Callable
-from typing import List, Tuple, Union
+from typing import List, Union
 from dateutil.relativedelta import relativedelta
 from starstream._utils import StarInterval, asyncTAR, handle_client_connection_error
-from datetime import timedelta, datetime
+from datetime import timedelta
+
+from starstream.typing import ScrapDate
 from ._base import CDAWeb, CSV
 from io import BytesIO
 import polars as pl
@@ -18,9 +20,9 @@ __all__ = ["SOHO"]
 class SOHO:
     class CELIAS_SEM(CDAWeb):
         def __init__(
-            self, root: str = "./data/SOHO/CELIAS_SEM", batch_size: int = 10
+            self, download_path: str = "./data/SOHO/CELIAS_SEM", batch_size: int = 10
         ) -> None:
-            super().__init__(root, batch_size)
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "CH1",
                 "CH2",
@@ -35,9 +37,9 @@ class SOHO:
 
     class CELIAS_PM(CDAWeb):
         def __init__(
-            self, root: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10
+            self, download_path: str = "./data/SOHO/CELIAS_PM", batch_size: int = 10
         ) -> None:
-            super().__init__(root, batch_size)
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "N_p",
                 "V_p",
@@ -52,9 +54,9 @@ class SOHO:
 
     class ERNE(CDAWeb):
         def __init__(
-            self, root: str = "./data/SOHO/ERNE/", batch_size: int = 10
+            self, download_path: str = "./data/SOHO/ERNE/", batch_size: int = 10
         ) -> None:
-            super().__init__(root, batch_size)
+            super().__init__(download_path, batch_size)
             self.phy_obs: List[str] = [
                 "PH",
                 "PHC",
@@ -83,10 +85,14 @@ class SOHO:
         date_sampling: Union[timedelta, relativedelta] = relativedelta(years=1)
         format: str = "%Y"
 
-        def __init__(self, root: str = "./data/SOHO/COSTEP_EPHIN") -> None:
-            super().__init__()
-            self.csv_path: Callable[[str], str] = lambda date: osp.join(
-                root, f"{date}.csv"
+        def __init__(
+                self,
+                root: str = "./data/SOHO/COSTEP_EPHIN"
+        ) -> None:
+            super().__init__(
+                root = root,
+                batch_size = 1,
+                filepath = lambda date: osp.join(root, f"{date}.csv")
             )
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
             self.l3i_path: Callable[[str], str] = lambda date: osp.join(
@@ -112,45 +118,38 @@ class SOHO:
                 "int_h41",
             ]
 
-        async def fetch(
-            self,
-            scrap_date: Union[
-                List[Tuple[datetime, datetime]], Tuple[datetime, datetime]
-            ],
-        ):
-            if isinstance(scrap_date[0], datetime):
-                self._check_tasks([scrap_date])
-            else:
-                self._check_tasks(scrap_date)
-
-            if self.new_scrap_date_list is None:
-                print("Dataset downloaded")
-            else:
-                await self.download_url(self.session)
-
-        def _check_tasks(self, scrap_date: List[Tuple[datetime, datetime]]) -> None:
+        def _interval_setup(self, scrap_date: ScrapDate) -> None:
             self.downloaded = len(glob.glob(self.root + "/*")) == 30
             if self.downloaded:
                 pass
             else:
-                self.new_scrap_date_list = [
+                self.dates = [
                     date
                     for date in StarInterval(scrap_date, relativedelta(years=1), "%Y")
                 ]
 
+            if self.dates:
+                os.makedirs(self.root, exist_ok = True)
+
+        async def _scrap_(self, idx: int) -> None:
+            _ = idx
+
         @handle_client_connection_error(
             max_retries=5, default_cooldown=5, increment="exp"
         )
-        async def download_url(self, session):
-            os.makedirs(self.root)
-            async with session.get(self.url) as response:
+        async def _download_(self, idx: int):
+            _ = idx
+            async with self.session.get(self.url) as response:
                 if response.status == 200:
                     data = await response.read()
-                    await asyncTAR(BytesIO(data), self.get_processing, self.root)
-                    await asyncio.gather(*self.get_preprocessing_tasks())
+                    await asyncTAR(BytesIO(data), self.get_processing)
+            await asyncio.gather(*self.get_preprocessing_tasks())
 
-        def get_processing(self, tar_file, root: str):
-            tar_file.extractall(root)
+        async def _prep_(self, idx: int) -> None:
+            _ = idx
+
+        def get_processing(self, tar_file):
+            tar_file.extractall(self.root)
 
         def get_preprocessing_tasks(self):
             return [
@@ -173,19 +172,14 @@ class SOHO:
             os.remove(year_path)
             df = pl.read_csv(year_path[:-3] + "csv")
             df = df.with_columns(
-                pl.struct(["year", "month", "day", "hour", "minute"])
-                .apply(
-                    lambda x: pl.datetime(
-                        year=x["year"],
-                        month=x["month"],
-                        day=x["day"],
-                        hour=x["hour"],
-                        minute=x["minute"],
-                    )
-                )
-                .alias("datetime")
+                pl.datetime(
+                    year="year",
+                    month="month",
+                    day="day",
+                    hour="hour",
+                    minute="minute"
+                ).alias("datetime")
             )
             df = df.drop(["year", "month", "day", "hour", "minute"])
             df = df.set_sorted("datetime")
-            df = df.groupby_dynamic("datetime", every="1m").agg(pl.all().mean())
             df.write_csv(year_path[:-3] + "csv")

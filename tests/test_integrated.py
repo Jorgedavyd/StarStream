@@ -7,8 +7,8 @@ def test_fits() -> None:
     DataDownloading(
         [
             Hinode.XRT(batch_size=15),
-            PROBA_2.LYRA(store_resolution=timedelta(minutes=5)),
-            SDO.AIA_HR(step_size=timedelta(minutes=2), wavelength="171"),
+            PROBA_2.LYRA(),
+            SDO.AIA_HR(resolution=timedelta(minutes=2), wavelength=171),
         ],
         scrap_date_list,
     )
