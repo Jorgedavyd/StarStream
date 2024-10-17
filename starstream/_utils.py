@@ -87,6 +87,7 @@ async def asyncGZFITS(obj: Union[str, BytesIO], processing: Callable, *args) -> 
     gz_obj = await asyncGZIP(obj, lambda gzip_file: gzip_file.read())
     return await asyncFITS(BytesIO(gz_obj), processing, *args)
 
+
 async def asyncTAR(obj: Union[str, BytesIO], processing: Callable, *args) -> Any:
     return await asyncGeneral(obj, processing, syncTAR, *args)
 
@@ -265,7 +266,11 @@ def not_valid_query(self, url: str) -> None:
 async def check_response_bytes(self, response, url: str) -> Any:
     if response is not None:
         content = await response.read()
-        if response.status != 200 or content.startswith(b"<html>") or b'404 Not Found' in content:
+        if (
+            response.status != 200
+            or content.startswith(b"<html>")
+            or b"404 Not Found" in content
+        ):
             not_valid_query(self, url)
             return
         return content
@@ -274,7 +279,7 @@ async def check_response_bytes(self, response, url: str) -> Any:
 async def check_response_text(self, response, url: str) -> Any:
     if response is not None:
         content = await response.text()
-        if response.status != 200 or '404 Not Found' in content:
+        if response.status != 200 or "404 Not Found" in content:
             not_valid_query(self, url)
         return content
 

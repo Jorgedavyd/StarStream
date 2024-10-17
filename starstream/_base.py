@@ -415,7 +415,9 @@ class Img(Satellite):
 
         out_list: List[NDArray] = []
         for i in range(0, len(paths), 256):
-            out_list.extend(await asyncio.gather(*[method(path) for path in paths[i: i+256]]))
+            out_list.extend(
+                await asyncio.gather(*[method(path) for path in paths[i : i + 256]])
+            )
         return np.stack(
             out_list,
             axis=0,

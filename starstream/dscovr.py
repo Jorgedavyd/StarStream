@@ -17,14 +17,24 @@ from bs4 import BeautifulSoup
 import aiofiles
 from playwright.async_api import async_playwright
 from dateutil import relativedelta
+
 __all__ = ["DSCOVR"]
 
 
 class DSCOVR:
     class __Base(CSV):
-        def __init__(self, root: str = "./data", batch_size: int = 10, filepath: Optional[Callable] = None, date_sampling: Union[timedelta, relativedelta] = timedelta(days = 1), format: str = "%Y%m%d", level: str = 'l2', achronym: Optional[str] = None) -> None:
+        def __init__(
+            self,
+            root: str = "./data",
+            batch_size: int = 10,
+            filepath: Optional[Callable] = None,
+            date_sampling: Union[timedelta, relativedelta] = timedelta(days=1),
+            format: str = "%Y%m%d",
+            level: str = "l2",
+            achronym: Optional[str] = None,
+        ) -> None:
             super().__init__(root, batch_size, filepath, date_sampling, format)
-            assert (level == "l2" or level == "l1"), "Not valid data product level"
+            assert level == "l2" or level == "l1", "Not valid data product level"
             assert achronym is not None, "Achronym not passed"
             self.level = level
             self.achronym = achronym
@@ -127,9 +137,7 @@ class DSCOVR:
         )
         async def _download_(self, idx: int) -> None:
             async def anonymous(gzip_file):
-                await asyncGZIP(
-                    gzip_file, self._gz_processing, self.dates[idx].str()
-                )
+                await asyncGZIP(gzip_file, self._gz_processing, self.dates[idx].str())
 
             await download_url_prep(self, idx, anonymous)
 

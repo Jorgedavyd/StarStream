@@ -23,7 +23,7 @@ class STEREO_A:
                 super().__init__(
                     root=osp.join(root, wavelength),
                     batch_size=batch_size,
-                    filepath=lambda name: osp.join(root, wavelength, name)
+                    filepath=lambda name: osp.join(root, wavelength, name),
                 )
                 self.wavelength: str = wavelength
                 self.url: Callable[[str, str], str] = (
@@ -38,7 +38,9 @@ class STEREO_A:
 
             def _interval_setup(self, scrap_date: ScrapDate) -> None:
                 super()._interval_setup(scrap_date)
-                self.scrap_urls: List[str] = [self.scrap_url(date.str()) for date in self.dates]
+                self.scrap_urls: List[str] = [
+                    self.scrap_url(date.str()) for date in self.dates
+                ]
 
             async def _scrap_(self, idx: int) -> None:
                 try:
@@ -51,7 +53,9 @@ class STEREO_A:
                 soup = BeautifulSoup(html, "html.parser")
                 names = [
                     name["href"]
-                    for name in soup.find_all("a", href=lambda key: key.endswith("R.png"))
+                    for name in soup.find_all(
+                        "a", href=lambda key: key.endswith("R.png")
+                    )
                 ]
                 self.paths.extend(
                     [self.filepath(name) for name in names if name is not None]
@@ -66,8 +70,8 @@ class STEREO_A:
             async def _prep_(self, idx: int) -> None:
                 _ = idx
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     DataDownloading(
-        STEREO_A.SECCHI.EUVI('171'),
-        [(datetime(2014, 10, 1), datetime(2014, 10, 30))]
+        STEREO_A.SECCHI.EUVI("171"), [(datetime(2014, 10, 1), datetime(2014, 10, 30))]
     )

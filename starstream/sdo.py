@@ -29,23 +29,25 @@ def date_to_day_of_year(date_string):
     day_of_year_string = f"{day_of_year:03d}"
     return date_string[:4] + day_of_year_string
 
+
 def url(date: str) -> str:
     yyyydoy: str = date_to_day_of_year(date)
     doy: str = yyyydoy[-3:]
     return f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level2b/{date[:4]}/{doy}/EVL_L2B_{yyyydoy}_008_01.fit.gz"
 
+
 class Base(Img):
     def __init__(
-            self,
-            wavelength: str,
-            root: str,
-            batch_size: int,
-            filepath: Callable,
-            url: Callable,
+        self,
+        wavelength: str,
+        root: str,
+        batch_size: int,
+        filepath: Callable,
+        url: Callable,
     ) -> None:
         super().__init__(
-            root = root,
-            batch_size = batch_size,
+            root=root,
+            batch_size=batch_size,
             filepath=filepath,
         )
         self.url = url
@@ -63,6 +65,7 @@ class Base(Img):
 
     async def _prep_(self, idx: int) -> None:
         _ = idx
+
 
 class SDO:
     class AIA_HR(Base):
@@ -100,7 +103,7 @@ class SDO:
                 root,
                 batch_size,
                 lambda name: osp.join(root, f"{wavelength:04}", self.name(name)),
-                lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}"
+                lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}",
             )
             self.resolution = resolution
             self.scrap_url: Callable[[str], str] = lambda date: self.url(date, "")
@@ -114,7 +117,6 @@ class SDO:
                 )
                 + ".jp2"
             )
-
 
         async def manipulate_html(self, html, idx: int):
             date: str = self.dates[idx].str()
@@ -159,8 +161,8 @@ class SDO:
                 wavelength,
                 root=osp.join(root, wavelength),
                 batch_size=batch_size,
-                filepath = lambda name: osp.join(root, wavelength, self.name(name)),
-                url = lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}"
+                filepath=lambda name: osp.join(root, wavelength, self.name(name)),
+                url=lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}",
             )
 
             self.name: Callable[[str], str] = (
@@ -185,7 +187,6 @@ class SDO:
             self.urls.extend([self.url(date, name) for name in names])
             self.paths.extend([self.filepath(name) for name in names])
 
-
     class EVE(CSV):
         def __init__(
             self,
@@ -196,7 +197,9 @@ class SDO:
                 root=root,
                 batch_size=batch_size,
             )
-            self.url: Callable[[str], str] = lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level3/{date[:4]}/EVE_L3_{date_to_day_of_year(date)}_008_01.fit"
+            self.url: Callable[[str], str] = (
+                lambda date: f"https://lasp.colorado.edu/eve/data_access/eve_data/products/level3/{date[:4]}/EVE_L3_{date_to_day_of_year(date)}_008_01.fit"
+            )
 
         def _interval_setup(self, scrap_date: ScrapDate) -> None:
             super()._interval_setup(scrap_date)
@@ -215,10 +218,15 @@ class SDO:
         def preprocessing(self, hdul, idx: int) -> None:
             date: str = self.dates[idx].str()
             data = hdul[8].data
-            columns: List[str] = ['MEGSB_LINE_IRRADIANCE', 'MEGSB_LINE_PRECISION', 'MEGSB_LINE_ACCURACY', 'MEGSB_LINE_STDEV']
+            columns: List[str] = [
+                "MEGSB_LINE_IRRADIANCE",
+                "MEGSB_LINE_PRECISION",
+                "MEGSB_LINE_ACCURACY",
+                "MEGSB_LINE_STDEV",
+            ]
             if data is not None:
                 data = data[columns].astype(np.float32)
-            df: pl.DataFrame = pl.from_numpy(data, schema = columns)
+            df: pl.DataFrame = pl.from_numpy(data, schema=columns)
 
             df = df.with_columns(
                 [
