@@ -225,24 +225,9 @@ class SDO:
                 "MEGSB_LINE_STDEV",
             ]
             if data is not None:
-                data = data[columns].astype(np.float32)
+                data = data[columns].astype(np.float32) ## aca esta mal de alguna manera, porque no pasa de aca el codigo
+                ## add dates (86000 sec separation)
             df: pl.DataFrame = pl.from_numpy(data, schema=columns)
-
-            df = df.with_columns(
-                [
-                    pl.struct(["YEAR", "DOY", ""])
-                    .apply(
-                        lambda row: pl.datetime(year=int(row["YEAR"]), month=1, day=1)
-                        + pl.duration(
-                            days=int(row["DOY"]) - 1,
-                            seconds=int(row["SOD"]),
-                            microseconds=int((row["SOD"] - int(row["SOD"])) * 1e6),
-                        )
-                    )
-                    .alias("date")
-                ]
-            )
-
             df = df.select(["date"])
             df = df.set_sorted("date")
             df.write_csv(self.filepath(date))
