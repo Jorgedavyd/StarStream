@@ -71,7 +71,7 @@ def test_proba() -> None:
 
 def test_aia_lr() -> None:
     def object():
-        return SDO.AIA_LR(wavelength="0131")
+        return SDO.AIA_LR(wavelength=131)
 
     runtime(object)
 

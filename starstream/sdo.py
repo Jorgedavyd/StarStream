@@ -52,10 +52,15 @@ class Base(Img):
         )
         self.url = url
         self.wavelength = wavelength
+        self.scrap_url: Callable[[str], str] = lambda date: self.url(date, "")
 
     def find_all(self, soup) -> List[str]:
         _ = soup
         raise NotImplemented("find_all")
+
+    def _interval_setup(self, scrap_date: ScrapDate) -> None:
+        super()._interval_setup(scrap_date)
+        self.scrap_urls: List[str] = [self.scrap_url(date.str()) for date in self.dates]
 
     async def _scrap_(self, idx: int):
         await scrap_url_default(self, idx, self.manipulate_html, idx)
@@ -87,11 +92,10 @@ class SDO:
         def __init__(
             self,
             wavelength: int,
-            root: str = "./data/SDO_HR/",
+            root: str = "./data/SDO/AIA_HR/",
             batch_size: int = 10,
             resolution: timedelta = timedelta(minutes=5),
         ) -> None:
-            f"{wavelength:04}"
             assert (
                 0 < batch_size <= 10
             ), "Not valid batch_size, should be between 0 and 10"
@@ -99,14 +103,13 @@ class SDO:
                 resolution > self.min_step_size
             ), "Not valid step size, extremely high resolution"
             super().__init__(
-                f"{wavelength:04}",
-                root,
+                str(wavelength),
+                osp.join(root, str(wavelength)),
                 batch_size,
-                lambda name: osp.join(root, f"{wavelength:04}", self.name(name)),
+                lambda name: osp.join(root, str(wavelength), self.name(name)),
                 lambda date, name: f"http://jsoc2.stanford.edu/data/aia/images/{date[:4]}/{date[4:6]}/{date[6:]}/{wavelength}/{name}",
             )
             self.resolution = resolution
-            self.scrap_url: Callable[[str], str] = lambda date: self.url(date, "")
             self.scrap_path: Callable[[str], str] = lambda date: osp.join(
                 self.root, f"{date}*.jp2"
             )
@@ -150,18 +153,18 @@ class SDO:
 
         def __init__(
             self,
-            wavelength: str,
+            wavelength: int,
             root: str = "./data/AIA_LR",
             batch_size: int = 256,
         ) -> None:
             assert (
-                wavelength in self.valid_wavelengths
+                f"{wavelength:04}" in self.valid_wavelengths
             ), f"Not valid wavelength: {self.valid_wavelengths}"
             super().__init__(
-                wavelength,
-                root=osp.join(root, wavelength),
+                f"{wavelength:04}",
+                root=osp.join(root, str(wavelength)),
                 batch_size=batch_size,
-                filepath=lambda name: osp.join(root, wavelength, self.name(name)),
+                filepath=lambda name: osp.join(root, str(wavelength), self.name(name)),
                 url=lambda date, name: f"https://sdo.gsfc.nasa.gov/assets/img/browse/{date[:4]}/{date[4:6]}/{date[6:]}/{name}",
             )
 

@@ -58,7 +58,7 @@ class Dst(CSV):
 
     async def _on_download_prep(self, data, idx: int) -> None:
         date: StarDate = self.dates[idx]
-        data = data.decode("utf-8").split("\n")
+        data = data.read().decode("utf-8").split("\n")
         data = list(map(lambda x: x.replace("-", " -").replace("+", " +"), data))
         data = list(map(lambda x: x.split(), data))
 

@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime
 import os.path as osp
 import polars as pl
+from starstream.typing import ScrapDate
 
 __all__ = ["PROBA_2"]
 
@@ -38,6 +39,11 @@ class PROBA_2:
             self.url: Callable[[str], str] = (
                 lambda date: f"http://proba2.oma.be/lyra/data/bsd/{date[:4]}/{date[4:6]}/{date[6:]}/lyra_{date}-000000_lev3_std.fits"
             )
+
+        def _interval_setup(self, scrap_date: ScrapDate) -> None:
+            super()._interval_setup(scrap_date)
+            self.urls = [self.url(date.str()) for date in self.dates]
+            self.paths = [self.filepath(date.str()) for date in self.dates]
 
         async def _scrap_(self, idx: int) -> None:
             _ = idx
