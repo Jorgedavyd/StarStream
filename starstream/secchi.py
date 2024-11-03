@@ -16,16 +16,16 @@ class STEREO_A:
         class EUVI(Img):
             def __init__(
                 self,
-                wavelength: str,
+                wavelength: int,
                 root: str = "./data/STEREO_A/SECCHI/EUVI",
                 batch_size: int = 10,
             ) -> None:
                 super().__init__(
-                    root=osp.join(root, wavelength),
+                    root=osp.join(root, str(wavelength)),
                     batch_size=batch_size,
-                    filepath=lambda name: osp.join(root, wavelength, name),
+                    filepath=lambda name: osp.join(root, str(wavelength), name),
                 )
-                self.wavelength: str = wavelength
+                self.wavelength: str = str(wavelength)
                 self.url: Callable[[str, str], str] = (
                     lambda date, name: f"https://stereo-ssc.nascom.nasa.gov/data/ins_data/secchi/wavelets/pngs/{date[:6]}/{date[6:]}/{self.wavelength}_A/{name}"
                 )
