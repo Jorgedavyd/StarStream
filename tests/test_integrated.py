@@ -8,10 +8,7 @@ def test_fits() -> None:
         [
             Hinode.XRT(batch_size=15),
             PROBA_2.LYRA(),
-            SDO.AIA_HR(
-                resolution=timedelta(minutes=2),
-                wavelength=171
-            ),
+            SDO.AIA_HR(resolution=timedelta(minutes=2), wavelength=171),
         ],
         scrap_date_list,
     )
