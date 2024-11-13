@@ -85,7 +85,7 @@ def test_aia_hr() -> None:
 
 def test_secchi() -> None:
     def object():
-        return STEREO_A.SECCHI.EUVI("171")
+        return STEREO_A.SECCHI.EUVI(171)
 
     runtime(object)
 

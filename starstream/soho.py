@@ -85,14 +85,11 @@ class SOHO:
         date_sampling: Union[timedelta, relativedelta] = relativedelta(years=1)
         format: str = "%Y"
 
-        def __init__(
-                self,
-                root: str = "./data/SOHO/COSTEP_EPHIN"
-        ) -> None:
+        def __init__(self, root: str = "./data/SOHO/COSTEP_EPHIN") -> None:
             super().__init__(
-                root = root,
-                batch_size = 1,
-                filepath = lambda date: osp.join(root, f"{date}.csv")
+                root=root,
+                batch_size=1,
+                filepath=lambda date: osp.join(root, f"{date}.csv"),
             )
             self.root: str = "./data/SOHO/COSTEP_EPHIN"
             self.l3i_path: Callable[[str], str] = lambda date: osp.join(
@@ -129,7 +126,7 @@ class SOHO:
                 ]
 
             if self.dates:
-                os.makedirs(self.root, exist_ok = True)
+                os.makedirs(self.root, exist_ok=True)
 
         async def _scrap_(self, idx: int) -> None:
             _ = idx
@@ -173,11 +170,7 @@ class SOHO:
             df = pl.read_csv(year_path[:-3] + "csv")
             df = df.with_columns(
                 pl.datetime(
-                    year="year",
-                    month="month",
-                    day="day",
-                    hour="hour",
-                    minute="minute"
+                    year="year", month="month", day="day", hour="hour", minute="minute"
                 ).alias("datetime")
             )
             df = df.drop(["year", "month", "day", "hour", "minute"])

@@ -15,3 +15,7 @@ Added:
         get_pandas
         get_polars
     - Modularized the whole library for Satellite object.
+
+# 1.1.0
+Added:
+     - Optimization: Serialized heavy networks consumers to relieve the bottleneck.
