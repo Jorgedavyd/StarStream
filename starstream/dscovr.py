@@ -147,12 +147,12 @@ class DSCOVR:
     class FaradayCup(__Base):
         def __init__(
             self,
-            root: str = "./data/DSCOVR",
+            root: str = "./data/DSCOVR/FaradayCup",
             batch_size: int = 15,
-            level: str = "l1",
+            level: str = "l2",
         ) -> None:
             super().__init__(
-                root=osp.join(root, "faraday", level),
+                root=osp.join(root, level),
                 batch_size=batch_size,
                 level=level,
                 achronym="fc1" if level == "l1" else "f1m",
@@ -161,12 +161,12 @@ class DSCOVR:
     class Magnetometer(__Base):
         def __init__(
             self,
-            root: str = "./data/DSCOVR",
+            root: str = "./data/DSCOVR/Magnetometer",
             batch_size: int = 10,
             level: str = "l2",
         ) -> None:
             super().__init__(
-                root=osp.join(root, "magnetometer", level),
+                root=osp.join(root, level),
                 batch_size=batch_size,
                 level=level,
                 achronym="mg1" if level == "l1" else "m1m",

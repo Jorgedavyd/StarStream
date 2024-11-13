@@ -1,6 +1,11 @@
 from typing import Callable, List
 from datetime import datetime
 from ._base import CDAWeb
+from numpy.typing import NDArray
+import os
+import spacepy.pycdf as pycdf
+import numpy as np
+import polars as pl
 
 
 def WIND_MAG_version(date, mode="%Y%m%d"):
@@ -457,3 +462,6 @@ class WIND:
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/sms/l2/stics_cdf/3min_vdf_solarwind/{date[:4]}/wi_l2-3min_sms-stics-vdf-solarwind_{date}_v01.cdf"
             )
+
+        async def _prep_(self, idx: int):
+            _ = idx
