@@ -403,7 +403,7 @@ class Img(Satellite):
     async def async_numpy(
         self,
         scrap_date: List[Tuple[datetime, datetime]],
-        resolution: Optional[int] = None,
+        resolution: Optional[int] = 1024,
     ) -> NDArray:
         paths: List[str] = self._path_prep(scrap_date)
         sample_path: str = paths[0]
