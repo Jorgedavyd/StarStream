@@ -19,15 +19,23 @@ def test_cdf() -> None:
         [SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), WIND.SMS()], scrap_date_list
     )
 
+
 def test_goes() -> None:
     DataDownloading(GOES16(instrument="he304", granularity=0.1), scrap_date_list)
 
+
 def test_general() -> None:
     DataDownloading(
-        [SOHO.CELIAS_PM(), ACE.SWEPAM(), Dst(), OMNI(), DSCOVR.FaradayCup(), DSCOVR.Magnetometer()],
         [
-                (datetime(2020, 1, 10), datetime(2020, 10, 20)),
-                (datetime(2018, 1, 10), datetime(2018, 10, 30)),
-        ]
+            SOHO.CELIAS_PM(),
+            ACE.SWEPAM(),
+            Dst(),
+            OMNI(),
+            DSCOVR.FaradayCup(),
+            DSCOVR.Magnetometer(),
+        ],
+        [
+            (datetime(2020, 1, 10), datetime(2020, 10, 20)),
+            (datetime(2018, 1, 10), datetime(2018, 10, 30)),
+        ],
     )
-

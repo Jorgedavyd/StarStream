@@ -2,6 +2,7 @@ from typing import Callable, List
 from datetime import datetime
 from ._base import CDAWeb
 
+
 def WIND_MAG_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)
     v4 = datetime.strptime("20230101", "%Y%m%d")

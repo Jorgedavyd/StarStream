@@ -9,6 +9,7 @@ from starstream.typing import ScrapDate
 
 __all__ = ["STEREO_A"]
 
+
 class STEREO_A:
     class SECCHI:
         class EUVI(Img):
