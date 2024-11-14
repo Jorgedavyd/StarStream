@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages, Command
+from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
@@ -41,32 +41,15 @@ def install_playwright():
             "Warning: Playwright command not found. Try running 'playwright install' manually."
         )
 
-
-class PlaywrightInstallCommand(Command):
-    description = "install Playwright browsers"
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        install_playwright()
-
-
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
         install_playwright()
 
-
 class CustomDevelopCommand(develop):
     def run(self):
         develop.run(self)
         install_playwright()
-
 
 class CustomEggInfoCommand(egg_info):
     def run(self):
@@ -102,7 +85,6 @@ if __name__ == "__main__":
             "install": CustomInstallCommand,
             "develop": CustomDevelopCommand,
             "egg_info": CustomEggInfoCommand,
-            "playwright": PlaywrightInstallCommand,
         },
         classifiers=[
             "Development Status :: 5 - Production/Stable",
