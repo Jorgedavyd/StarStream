@@ -41,15 +41,18 @@ def install_playwright():
             "Warning: Playwright command not found. Try running 'playwright install' manually."
         )
 
+
 class CustomInstallCommand(install):
     def run(self):
         install.run(self)
         install_playwright()
 
+
 class CustomDevelopCommand(develop):
     def run(self):
         develop.run(self)
         install_playwright()
+
 
 class CustomEggInfoCommand(egg_info):
     def run(self):
