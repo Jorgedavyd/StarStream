@@ -171,7 +171,8 @@ class CSV(Satellite):
         scrap_date: Union[Tuple[datetime, datetime], List[Tuple[datetime, datetime]]],
         resolution: Optional[timedelta] = None,
     ) -> Tuple[pd.DataFrame, ...]:
-        return self._convert_to_format(scrap_date, resolution, "to_pandas")
+        list_df: List[pl.DataFrame] = self._process_polars(scrap_date, resolution)
+        return tuple([df.to_pandas(date_as_object = False).set_index('date', drop = True) for df in list_df])
 
     def get_torch(
         self,

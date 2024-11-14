@@ -3,7 +3,6 @@ from typing import List, Union
 from dateutil.relativedelta import relativedelta
 from starstream._utils import StarInterval, asyncTAR, handle_client_connection_error
 from datetime import timedelta
-
 from starstream.typing import ScrapDate
 from ._base import CDAWeb, CSV
 from io import BytesIO

@@ -1,12 +1,6 @@
 from typing import Callable, List
 from datetime import datetime
 from ._base import CDAWeb
-from numpy.typing import NDArray
-import os
-import spacepy.pycdf as pycdf
-import numpy as np
-import polars as pl
-
 
 def WIND_MAG_version(date, mode="%Y%m%d"):
     date = datetime.strptime(date, mode)

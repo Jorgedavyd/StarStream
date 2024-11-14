@@ -1,5 +1,4 @@
 from typing import List, Tuple
-
 from starstream._base import CSV
 from starstream._utils import StarDate, StarInterval
 from datetime import datetime, timedelta

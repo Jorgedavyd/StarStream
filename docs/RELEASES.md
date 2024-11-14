@@ -26,3 +26,4 @@ Added:
     - DSCOVR naming convention.
     - SMS preprocessing (raw)
     - testing scheme for SMS
+    - Pandas date index.

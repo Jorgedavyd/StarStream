@@ -7,9 +7,7 @@ from datetime import datetime
 from starstream.downloader import DataDownloading
 from starstream.typing import ScrapDate
 
-
 __all__ = ["STEREO_A"]
-
 
 class STEREO_A:
     class SECCHI:
