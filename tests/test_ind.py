@@ -109,8 +109,10 @@ def test_soho_costep_ephin() -> None:
 def test_wind() -> None:
     runtime(WIND.MAG)
 
+
 def test_sis() -> None:
     runtime(WIND.SMS)
+
 
 def test_aia_eve() -> None:
     runtime(SDO.EVE)
