@@ -80,6 +80,30 @@ class WIND:
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/wind/swe/swe_h1/{date[:4]}/wi_h1_swe_{date}_v01.cdf"
             )
 
+    class SWE_Ion_Anisotropy(CDAWeb):
+        def __init__(
+            self,
+            root: str = "./data/WIND/SWE/proton_anisotropy/",
+            batch_size: int = 10,
+        ) -> None:
+            super().__init__(root, batch_size)
+            self.phy_obs: List[str] = [
+                "Proton_V_nonlin",
+                "Proton_W_nonlin",
+                "Proton_Wperp_nonlin",
+                "Proton_Wpar_nonlin",
+                "Proton_Np_nonlin",
+                "Alpha_V_nonlin",
+                "Alpha_W_nonlin",
+                "Alpha_Wperp_nonlin",
+                "Alpha_Wpar_nonlin",
+                "Alpha_Na_nonlin",
+            ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h3_swe_00000000_v01.skt
+            self.variables: List[str] = self.phy_obs
+            self.url: Callable[[str], str] = (
+                lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/swe/swe_h1_rtn/{date[4:]}/wi_h1_swe_rtn_{date}_v01.cdf"
+            )
+
     class SWE_electron_angle(CDAWeb):
         def __init__(
             self,
@@ -107,17 +131,28 @@ class WIND:
             super().__init__(root, batch_size)
             self.phy_obs: List[str] = [
                 "N_elec",
+                "NcElec",
                 "TcElec",
+                "T_Elec",
                 "U_eGSE",
+                "UceGSE",
                 "P_eGSE",
                 "W_elec",
+                "WcElec",
                 "Te_pal",
+                "Te_per",
+                "Tec_per",
+                "Tec_pal",
+                "TecAni",
+                "Te_ani",
+                "cartesian",
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
             self.variables: List[str] = (
-                self.phy_obs[:2]
-                + ["U_eGSE" + f"_{i}" for i in range(1, 4)]
-                + ["P_eGSE" + f"_{i}" for i in range(1, 7)]
-                + self.phy_obs[4:]
+                self.phy_obs[:4]
+                + ['Ux', 'Uy', 'Uz']
+                + ['Ucx', 'Ucy', 'Ucz']
+                + ['Pxx', 'Pxy', 'Pxz', 'Pyy', 'Pyz', 'Pzz']
+                + self.phy_obs[-8:] + ["x", "y", "z"]
             )
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/wind/swe/swe_h5/{date[:4]}/wi_h5_swe_{date}_v01.cdf"
