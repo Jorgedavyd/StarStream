@@ -22,8 +22,6 @@ jobs:
       - name: Install dependencies
         run: |
           chmod +x ./scripts/cd_requirements.sh
-          python -m venv env
-          source env/bin/activate
           sh ./scripts/cd_requirements.sh
 
       - name: Extract tag name

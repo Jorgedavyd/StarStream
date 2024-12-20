@@ -35,11 +35,6 @@ jobs:
         run: |
           sudo chmod +x ./scripts/*.sh
 
-      - name: Create environment
-        run: |
-          python3 -m venv env
-          source env/bin/activate
-
       - name: Install dependencies
         run: |
           sudo sh ./scripts/requirements.sh
