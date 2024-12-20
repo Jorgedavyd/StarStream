@@ -149,10 +149,11 @@ class WIND:
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h5_swe_00000000_v01.skt
             self.variables: List[str] = (
                 self.phy_obs[:4]
-                + ['Ux', 'Uy', 'Uz']
-                + ['Ucx', 'Ucy', 'Ucz']
-                + ['Pxx', 'Pxy', 'Pxz', 'Pyy', 'Pyz', 'Pzz']
-                + self.phy_obs[-8:] + ["x", "y", "z"]
+                + ["Ux", "Uy", "Uz"]
+                + ["Ucx", "Ucy", "Ucz"]
+                + ["Pxx", "Pxy", "Pxz", "Pyy", "Pyz", "Pzz"]
+                + self.phy_obs[-8:]
+                + ["x", "y", "z"]
             )
             self.url: Callable[[str], str] = (
                 lambda date: f"https://cdaweb.gsfc.nasa.gov/sp_phys/data/wind/swe/swe_h5/{date[:4]}/wi_h5_swe_{date}_v01.cdf"
