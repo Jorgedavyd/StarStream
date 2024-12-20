@@ -1,6 +1,6 @@
 #!/bin/bash
 python3 -m pip install --upgrade pip
-pip3 install pytest black pipreqs pip-tools
+pip install pytest black pipreqs pip-tools
 pipreqs starstream --savepath=./requirements.in
 sed -i 's/==.*$//' requirements.in
 sort requirements.in | uniq > requirements_unique.in
