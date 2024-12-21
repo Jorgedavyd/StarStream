@@ -27,3 +27,7 @@ Added:
     - SMS preprocessing (raw)
     - testing scheme for SMS
     - Pandas date index.
+
+# 1.1.2
+- Added:
+    - WIND SWE products (electron moments, anistropic product)

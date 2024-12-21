@@ -101,7 +101,7 @@ class WIND:
             ]  ## metadata: https://cdaweb.gsfc.nasa.gov/pub/software/cdawlib/0SKELTABLES/wi_h3_swe_00000000_v01.skt
             self.variables: List[str] = self.phy_obs
             self.url: Callable[[str], str] = (
-                lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/swe/swe_h1_rtn/{date[4:]}/wi_h1_swe_rtn_{date}_v01.cdf"
+                lambda date: f"https://cdaweb.gsfc.nasa.gov/data/wind/swe/swe_h1_rtn/{date[:4]}/wi_h1_swe_rtn_{date}_v01.cdf"
             )
 
     class SWE_electron_angle(CDAWeb):
